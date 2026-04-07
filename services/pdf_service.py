@@ -15,6 +15,30 @@ class StoryPDF(FPDF):
         # Page number
         self.cell(0, 10, f'Page {self.page_no()} | Created with StoryBook AI', 0, 0, 'C')
 
+def clean_text_for_pdf(text):
+    """
+    Standard PDF fonts (Helvetica) only support Latin-1 characters.
+    This function cleans up smart quotes, long dashes, and other
+    common UTF-8 characters that cause PDF generation to crash.
+    """
+    if not text:
+        return ""
+    
+    replacements = {
+        '\u201c': '"', '\u201d': '"',  # Smart double quotes
+        '\u2018': "'", '\u2019': "'",  # Smart single quotes
+        '\u2014': '-', '\u2013': '-',  # Em and en dashes
+        '\u2026': '...',               # Ellipsis
+        '\u00a0': ' ',                 # Non-breaking space
+    }
+    
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+        
+    # Final safety: encode to latin-1 and back to ignore anything else that's weird
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
+
 def generate_story_pdf(story_data):
     """
     Generate a formatted PDF for a story.
@@ -29,11 +53,12 @@ def generate_story_pdf(story_data):
     # Story Title
     pdf.set_font('helvetica', 'B', 24)
     pdf.set_y(60)
-    pdf.cell(0, 20, story_data.get('title', 'A Magical Story'), ln=True, align='C')
+    title = clean_text_for_pdf(story_data.get('title', 'A Magical Story'))
+    pdf.cell(0, 20, title, ln=True, align='C')
     
     # Metadata
     pdf.set_font('helvetica', '', 14)
-    theme = story_data.get('theme', 'Adventure').capitalize()
+    theme = clean_text_for_pdf(story_data.get('theme', 'Adventure').capitalize())
     age = story_data.get('age_group', '6-8')
     pdf.cell(0, 10, f"A {theme} adventure for Ages {age}", ln=True, align='C')
     
@@ -59,32 +84,24 @@ def generate_story_pdf(story_data):
         
         # Section Title
         pdf.set_font('helvetica', 'B', 18)
-        pdf.cell(0, 15, section.get('title', 'Chapter'), ln=True)
+        section_title = clean_text_for_pdf(section.get('title', 'Chapter'))
+        pdf.cell(0, 15, section_title, ln=True)
         
         # Illustration (if available)
         image_url = section.get('image_url')
         if image_url:
-            # image_url is usually 'generated_images/xxx.webp'
-            # We need absolute path
             abs_img_path = os.path.join(os.getcwd(), 'static', image_url)
             if os.path.exists(abs_img_path):
                 try:
-                    # WebP Support Tip: fpdf2 supports WebP if Pillow is installed
-                    # We have Pillow in requirements.txt
-                    # Center the image
+                    # Protection: If the image is truncated or invalid, don't crash the PDF
                     pdf.image(abs_img_path, x=15, w=180) 
                     pdf.ln(10)
                 except Exception as e:
-                    print(f"[PDF] Could not embed image: {e}")
+                    print(f"[PDF Warning] Could not embed image {image_url}: {e}")
         
         # Section Content
         pdf.set_font('helvetica', '', 12)
-        # multi_cell handles line wrapping
-        # Use encode/decode to handle smart quotes or special chars if necessary, 
-        # but fpdf2 handles utf-8 by default if we enable it.
-        content = section.get('content', '')
-        # Clean up some common issues
-        content = content.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
+        content = clean_text_for_pdf(section.get('content', ''))
         pdf.multi_cell(0, 8, content)
         pdf.ln(5)
 

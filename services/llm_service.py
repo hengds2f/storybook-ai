@@ -102,6 +102,8 @@ def _demo_story(params: dict) -> str:
         characters = [{"name": "Luna", "traits": ["brave", "curious"]}]
     
     main_char = characters[0].get("name", "Luna")
+    friends = [c.get("name") for c in characters[1:] if c.get("name")]
+    friend_text = ", ".join(friends) if friends else "their robot companions"
     all_names = ", ".join([c.get("name") for c in characters if c.get("name")])
     setting = params.get("setting", "a magical world")
     theme = params.get("theme", "friendship")
@@ -111,30 +113,30 @@ def _demo_story(params: dict) -> str:
     TEMPLATES = [
         # Template 1: Space Adventure
         {
-            "intro": f"High above {setting}, among the twinkling stars, {main_char} and their friends {all_names} were piloting a shimmering star-scooter. They were on a mission to deliver a bucket of moonlight to the sleepy moon-fishes.",
-            "scene1": f"{main_char} and {all_names} soaring through space with a bucket of glowing moonlight",
+            "intro": f"High above {setting}, among the twinkling stars, {main_char} and their friends {friend_text} were piloting a shimmering star-scooter. They were on a mission to deliver a bucket of moonlight to the sleepy moon-fishes.",
+            "scene1": f"{main_char} and {friend_text} soaring through space with a bucket of glowing moonlight",
             "challenge": f"Suddenly, a friendly space-whale accidentally sneezed a giant bubble of stardust that blocked their path. The star-scooter began to spin! They needed to find a way to navigate through the sticky, sparkly stardust before the moon-fishes woke up.",
-            "scene2": f"The star-scooter caught in a giant, shimmering bubble of pink and gold stardust",
+            "scene2": f"{main_char} and {friend_text} caught in a giant, shimmering bubble of pink and gold stardust",
             "res": f"Using the power of {theme}, they all hummed a harmony that vibrated the stardust bubble away. The space-whale realized its mistake and gave them a gentle push with its fin, helping them reach the moon just in time.",
-            "scene3": f"{all_names} laughing and waving to a giant, friendly space-whale as they land on the moon"
+            "scene3": f"{main_char} and {friend_text} laughing and waving to a giant, friendly space-whale as they land on the moon"
         },
         # Template 2: Underwater Mystery
         {
-            "intro": f"Deep beneath the waves of {setting}, {main_char} and {all_names} were swimming through the coral gardens. They were wearing magical bubble-helmets that let them talk to the singing seahorses.",
-            "scene1": f"{main_char} and {all_names} in bubble-helmets swimming through a forest of rainbow coral",
-            "challenge": f"The seahorses had lost their singing voices! A mischievous current had carried their songs away into the dark, silent trenches of the deep. {all_names} had to find the 'Echo Cave' to get the music back.",
-            "scene2": f"{all_names} looking brave as they swim towards a glowing cave at the bottom of the sea",
+            "intro": f"Deep beneath the waves of {setting}, {main_char} and {friend_text} were swimming through the coral gardens. They were wearing magical bubble-helmets that let them talk to the singing seahorses.",
+            "scene1": f"{main_char} and {friend_text} in bubble-helmets swimming through a forest of rainbow coral",
+            "challenge": f"The seahorses had lost their singing voices! A mischievous current had carried their songs away into the dark, silent trenches of the deep. They had to find the 'Echo Cave' to get the music back.",
+            "scene2": f"{main_char} and {friend_text} looking brave as they swim towards a glowing cave at the bottom of the sea",
             "res": f"In the Echo Cave, they discovered that if they all shared their favorite memories of {theme}, the music would grow back. Their voices combined into a beautiful melody that returned the seahorses' songs to the whole reef.",
-            "scene3": f"The seahorses dancing and singing around {all_names} in a swirl of bubbles and notes"
+            "scene3": f"The seahorses dancing and singing around {main_char} and {friend_text} in a swirl of bubbles and notes"
         },
         # Template 3: Toy World
         {
-            "intro": f"In the center of {setting}, there was a secret door that led to the Land of Lost Toys. {main_char} and {all_names} stepped inside and discovered they were now the same size as the building blocks!",
-            "scene1": f"{main_char} and {all_names} looking tiny as they stand next to giant colorful building blocks",
+            "intro": f"In the center of {setting}, there was a secret door that led to the Land of Lost Toys. {main_char} and {friend_text} stepped inside and discovered they were now the same size as the building blocks!",
+            "scene1": f"{main_char} and {friend_text} looking tiny as they stand next to giant colorful building blocks",
             "challenge": f"The great Clockwork Train had stopped running because one of its golden cogs had gone missing. Without the train, all the toys in the land were stuck! They had to climb the tallest mountain of stuffed bears to find it.",
-            "scene2": f"{all_names} climbing up a soft, fuzzy mountain made of teddy bears of all colors",
+            "scene2": f"{main_char} and {friend_text} climbing up a soft, fuzzy mountain made of teddy bears of all colors",
             "res": f"Working together with {theme}, they found the golden cog hidden in a bear's pocket. They slid down the mountain and placed the cog back, making the train let out a happy whistle and start its wheels again.",
-            "scene3": f"A giant colorful clockwork train chugging through a land of toys with {all_names} waving from the window"
+            "scene3": f"A giant colorful clockwork train chugging through a land of toys with {main_char} and {friend_text} waving from the window"
         }
     ]
 

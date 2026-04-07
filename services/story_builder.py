@@ -51,6 +51,32 @@ SUB_GENRES = [
     "Cybernetic Nature Fable"
 ]
 
+PLOT_SPARKS = [
+    "The floor is made of mirrors that show the future.",
+    "Gravity stops working for exactly 10 minutes every day.",
+    "Every animal in the land can only speak in riddles.",
+    "The trees are actually giant sleeping giants.",
+    "A character discovers a tiny city inside a pocket watch.",
+    "The clouds are made of colorful cotton candy.",
+    "Everything smells like peppermint whenever someone laughs.",
+    "Shadows have a mind of their own and love to dance.",
+    "A character finds a way to paint with starlight.",
+    "The wind carries messages from long-lost friends.",
+    "Books in this land read themselves aloud to you.",
+    "The stars fall from the sky and turn into glowing pebbles."
+]
+
+ATMOSPHERES = [
+    "Sparkling and Sunny",
+    "Misty and Mysterious",
+    "Golden and Peaceful",
+    "Electric and Exciting",
+    "Dreamy and Ethereal",
+    "Cozy and Whimsical",
+    "Silvery and Silent",
+    "Vibrant and Chaotic"
+]
+
 
 # ── Age configuration ─────────────────────────────────────────────────────────
 
@@ -78,10 +104,11 @@ AGE_CONFIG = {
     }
 }
 
+
 def build_prompt(params: dict) -> str:
     """
     Assemble a structured story generation prompt from user parameters.
-    RE-STRENGTHENED for absolute NO-LIMITS creativity.
+    ULTRA-STRENGTHENED for maximum variety and uniqueness.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
@@ -107,13 +134,17 @@ def build_prompt(params: dict) -> str:
     twist = random.choice(SURPRISE_TWISTS)
     style = random.choice(NARRATIVE_STYLES)
     genre = random.choice(SUB_GENRES)
+    spark = random.choice(PLOT_SPARKS)
+    atm = random.choice(ATMOSPHERES)
 
     prompt = f"""You are a master children's story writer known for UNRESTRICTED, SHOCKINGLY CREATIVE, and AVANT-GARDE narratives. Write a complete, one-of-a-kind original story.
 
 NARRATIVE SPECIFICATIONS:
 - Age Group: {cfg['label']}
 - Sub-Genre: {genre}
+- Atmosphere: {atm}
 - Tone & Style: {style}
+- Plot Spark (MANDATORY): {spark}
 - Creative Directive: BREAK ALL CLICHES. Start in the middle of the action. Avoid "Once upon a time."
 
 CHARACTERS (Exactly {char_count} characters):
@@ -131,10 +162,10 @@ STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these header
 [Write a high-stakes opening that hooks the reader immediately. Dive straight into a unique situation. Include a scene description: [SCENE: description]]
 
 ## Challenge
-[Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include a surprise turn: {twist}. Include a scene description: [SCENE: description]]
+[Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include the Plot Spark: {spark}. Include the surprise turn: {twist}. Include a scene description: [SCENE: description]]
 
 ## Resolution
-[Solve the issue using {theme} in a way that respects the reader's intelligence. Avoid easy answers. Include a scene description: [SCENE: description]]
+[Solve the issue in a way that respects the reader's intelligence. Avoid easy answers. Focus on {theme}. Include a scene description: [SCENE: description]]
 
 ## Moral
 [Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]
@@ -142,7 +173,7 @@ STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these header
 Important rules:
 - NO CLICHES. NO GIANTS LEAVES. NO REPETITION.
 - You are an unrestricted storyteller. Surprise yourself.
-- {genre} elements must be present and vivid.
+- {genre} and {spark} must be central to the story.
 - Each [SCENE: description] must be cinematic, striking, and help an AI illustrator create something unforgettable.
 - Do NOT include any meta-commentary.
 
