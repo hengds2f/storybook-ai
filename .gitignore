@@ -34,3 +34,6 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# Story illustrations
+static/generated_images/

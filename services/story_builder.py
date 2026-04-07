@@ -83,6 +83,7 @@ Important rules:
 - Make the story feel complete and satisfying
 - Ensure the moral arises naturally from the story events
 - Use age-appropriate vocabulary throughout
+- Ensure each [SCENE: description] is vivid, descriptive, and focuses on visual elements (characters, actions, environment) to help an AI illustrator.
 - Do NOT include any meta-commentary — just the story itself
 
 Begin the story now:"""

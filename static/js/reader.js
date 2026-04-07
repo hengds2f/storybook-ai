@@ -109,8 +109,16 @@ const Reader = (() => {
       return `
         <div class="chapter-break" id="chapter-${idx}">
           <div class="chapter-number">Chapter ${idx + 1}</div>
-          <div class="chapter-icons">${icon}</div>
           <div class="chapter-title">${App.escapeHtml(section.title)}</div>
+          
+          ${section.image_url ? `
+            <div class="chapter-illustration">
+              <img src="/static/${section.image_url}" alt="${App.escapeHtml(section.title)}" class="story-img" loading="lazy" />
+            </div>
+          ` : `
+            <div class="chapter-icons">${icon}</div>
+          `}
+
           ${section.scene_description ? `
             <div class="scene-description">
               🎨 ${App.escapeHtml(section.scene_description)}

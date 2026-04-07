@@ -5,6 +5,7 @@ from services.storage import (
     save_story, get_stories_for_profile, get_story_by_id,
     delete_story, get_profile_by_id
 )
+from services.image_service import generate_image
 
 story_bp = Blueprint("story", __name__)
 
@@ -49,6 +50,13 @@ def generate():
     # Parse the structured output
     content = parse_story(raw_text, params)
     title = content["title"]
+
+    # Generate illustrations for each section
+    for section in content.get("sections", []):
+        scene_desc = section.get("scene_description")
+        if scene_desc:
+            print(f"[STORY] Generating illustration for: {scene_desc[:50]}...")
+            section["image_url"] = generate_image(scene_desc, params)
 
     # Save to database
     story = save_story(
