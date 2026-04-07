@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Create Story — StoryBook AI{% endblock %}
+{% block meta_description %}Customize your child's story: choose characters, setting, theme, age group, and moral lesson to generate a unique AI story.{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Page header -->
+  <div style="padding: 2.5rem 0 1rem;">
+    <div class="section-tag">✨ Story Builder</div>
+    <h1 style="font-size:2rem;">Create a New Story</h1>
+    <p style="color:var(--text-secondary); margin-top:0.4rem;">Fill in the details below and the AI will craft a unique story for your child.</p>
+  </div>
+
+  <!-- Profile selector -->
+  <div id="profileSelectorBar" class="builder-section" style="margin-bottom:1.25rem;">
+    <div class="builder-section-title">👤 Whose Story Is This?</div>
+    <div id="profileSelector" class="profile-tabs">
+      <!-- Populated by builder.js -->
+      <div class="text-muted text-small">Loading profiles<span class="loading-dots"></span></div>
+    </div>
+    <button class="btn btn-ghost btn-sm mt-1" onclick="Builder.openAddProfile()">+ Add Child Profile</button>
+  </div>
+
+  <div class="builder-layout">
+    <!-- ── Left: Form ──────────────────────────────────────────────── -->
+    <div>
+
+      <!-- Characters -->
+      <div class="builder-section" id="charactersSection">
+        <div class="builder-section-title">🎭 Characters</div>
+        <div id="charactersList">
+          <!-- Populated by builder.js -->
+        </div>
+        <button class="btn btn-ghost btn-sm" id="addCharBtn" onclick="Builder.addCharacter()">+ Add Character</button>
+      </div>
+
+      <!-- Setting & Theme -->
+      <div class="builder-section">
+        <div class="builder-section-title">🌍 Setting & Theme</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+          <div class="form-group">
+            <label class="form-label" for="settingSelect">Setting</label>
+            <select class="form-select" id="settingSelect" onchange="Builder.updatePreview()">
+              <option value="an enchanted forest">🌲 Enchanted Forest</option>
+              <option value="outer space">🚀 Outer Space</option>
+              <option value="a magical underwater kingdom">🌊 Underwater Kingdom</option>
+              <option value="a medieval castle kingdom">🏰 Medieval Castle</option>
+              <option value="a bustling modern city">🏙️ Modern City</option>
+              <option value="a cozy mountain village">⛰️ Mountain Village</option>
+              <option value="a mystical desert with ancient temples">🏜️ Mystical Desert</option>
+              <option value="a futuristic robot city">🤖 Robot City</option>
+              <option value="a rainbow cloud kingdom">🌈 Cloud Kingdom</option>
+              <option value="custom">✏️ Custom...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="themeSelect">Theme</label>
+            <select class="form-select" id="themeSelect" onchange="Builder.updatePreview()">
+              <option value="friendship">💛 Friendship</option>
+              <option value="courage">🦁 Courage</option>
+              <option value="honesty">🌟 Honesty</option>
+              <option value="kindness">💗 Kindness</option>
+              <option value="perseverance">💪 Perseverance</option>
+              <option value="sharing">🤝 Sharing</option>
+              <option value="teamwork">🏆 Teamwork</option>
+              <option value="respect">🌸 Respect</option>
+              <option value="creativity">🎨 Creativity</option>
+              <option value="curiosity">🔭 Curiosity</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Custom setting input (hidden by default) -->
+        <div class="form-group hidden" id="customSettingGroup">
+          <label class="form-label" for="customSetting">Describe Your Setting</label>
+          <input type="text" class="form-input" id="customSetting" placeholder="e.g. a magical candy land ruled by talking animals" oninput="Builder.updatePreview()" />
+        </div>
+      </div>
+
+      <!-- Age Range -->
+      <div class="builder-section">
+        <div class="builder-section-title">🎂 Age Range</div>
+        <div class="age-selector">
+          <label class="age-option">
+            <input type="radio" name="ageGroup" value="3-5" id="age35" onchange="Builder.updatePreview()" />
+            <div class="age-label">
+              <span class="age-icon">🐣</span>
+              <span class="age-range">3–5</span>
+              <span class="age-desc">Short & simple</span>
+            </div>
+          </label>
+          <label class="age-option">
+            <input type="radio" name="ageGroup" value="6-8" id="age68" checked onchange="Builder.updatePreview()" />
+            <div class="age-label">
+              <span class="age-icon">🌱</span>
+              <span class="age-range">6–8</span>
+              <span class="age-desc">Fun & engaging</span>
+            </div>
+          </label>
+          <label class="age-option">
+            <input type="radio" name="ageGroup" value="9-12" id="age912" onchange="Builder.updatePreview()" />
+            <div class="age-label">
+              <span class="age-icon">🌳</span>
+              <span class="age-range">9–12</span>
+              <span class="age-desc">Rich & detailed</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Moral Lesson -->
+      <div class="builder-section">
+        <div class="builder-section-title">💡 Moral Lesson</div>
+        <div class="form-group mb-2">
+          <label class="form-label">Quick Presets</label>
+          <div class="chip-group" id="moralPresets">
+            <div class="chip" onclick="Builder.setMoral('Always be kind and help others, even when it costs you something.')">🤝 Be Kind</div>
+            <div class="chip" onclick="Builder.setMoral('Honesty is always the best choice, even when the truth is hard.')">✨ Be Honest</div>
+            <div class="chip" onclick="Builder.setMoral('Never give up — every challenge makes you stronger.')">💪 Never Give Up</div>
+            <div class="chip" onclick="Builder.setMoral('Together we are stronger than alone — teamwork makes dreams work.')">🏆 Teamwork Wins</div>
+            <div class="chip" onclick="Builder.setMoral('Sharing what you have brings more joy than keeping it to yourself.')">🎁 Sharing is Caring</div>
+            <div class="chip" onclick="Builder.setMoral('Believe in yourself — you have more power than you know.')">⭐ Self-Belief</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="moralInput">Or Write Your Own</label>
+          <textarea class="form-textarea" id="moralInput" placeholder="e.g. It's okay to ask for help — being brave doesn't mean doing everything alone." oninput="Builder.updatePreview()"></textarea>
+        </div>
+      </div>
+
+      <!-- Generate Button -->
+      <button class="btn btn-accent btn-xl w-full" id="generateBtn" onclick="Builder.generateStory()">
+        ✨ Generate My Story
+      </button>
+      <p class="text-small text-muted text-center mt-1" id="apiNote">
+        💡 No API token? A demo story will be shown — add your HF_TOKEN in .env for real AI generation.
+      </p>
+    </div>
+
+    <!-- ── Right: Live Preview ─────────────────────────────────────── -->
+    <div>
+      <div class="prompt-preview">
+        <div class="prompt-preview-title">✨ Story Preview</div>
+
+        <div class="preview-item">
+          <span class="preview-label">Child Profile</span>
+          <span class="preview-value" id="prevProfile">—</span>
+        </div>
+        <div class="preview-item">
+          <span class="preview-label">Characters</span>
+          <span class="preview-value" id="prevCharacters">—</span>
+        </div>
+        <div class="preview-item">
+          <span class="preview-label">Setting</span>
+          <span class="preview-value" id="prevSetting">—</span>
+        </div>
+        <div class="preview-item">
+          <span class="preview-label">Theme</span>
+          <span class="preview-value" id="prevTheme">—</span>
+        </div>
+        <div class="preview-item">
+          <span class="preview-label">Age Group</span>
+          <span class="preview-value" id="prevAge">Ages 6–8</span>
+        </div>
+        <div class="preview-item">
+          <span class="preview-label">Moral Lesson</span>
+          <span class="preview-value" id="prevMoral" style="font-size:0.88rem; color:var(--text-secondary);">—</span>
+        </div>
+
+        <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--color-border);">
+          <p class="text-small text-muted">
+            📖 Your story will have 4 chapters: Introduction, Challenge, Resolution, and Moral — with illustrated scene breaks between each section.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Profile Modal -->
+<div class="modal-overlay" id="addProfileModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>👤 Add Child Profile</h3>
+      <button class="modal-close" onclick="Builder.closeAddProfile()">✕</button>
+    </div>
+    <form onsubmit="Builder.saveProfile(event)">
+      <div class="form-group mb-2">
+        <label class="form-label" for="profileName">Child's Name</label>
+        <input type="text" class="form-input" id="profileName" placeholder="e.g. Emma" required />
+      </div>
+      <div class="form-group mb-2">
+        <label class="form-label">Age Group</label>
+        <div class="age-selector" style="grid-template-columns:repeat(3,1fr);">
+          <label class="age-option">
+            <input type="radio" name="profileAge" value="3-5" />
+            <div class="age-label"><span class="age-icon">🐣</span><span class="age-range">3–5</span></div>
+          </label>
+          <label class="age-option">
+            <input type="radio" name="profileAge" value="6-8" checked />
+            <div class="age-label"><span class="age-icon">🌱</span><span class="age-range">6–8</span></div>
+          </label>
+          <label class="age-option">
+            <input type="radio" name="profileAge" value="9-12" />
+            <div class="age-label"><span class="age-icon">🌳</span><span class="age-range">9–12</span></div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Avatar Color</label>
+        <div class="color-picker-row" id="colorPicker">
+          <!-- Populated by builder.js -->
+        </div>
+      </div>
+      <div id="profileError" class="text-small hidden" style="color:var(--danger); margin-bottom:1rem;"></div>
+      <button type="submit" class="btn btn-primary w-full">
+        <span id="profileSaveSpinner" class="spinner hidden"></span>
+        Save Profile
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/builder.js') }}"></script>
+{% endblock %}

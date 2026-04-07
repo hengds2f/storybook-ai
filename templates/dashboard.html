@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Parent Dashboard — StoryBook AI{% endblock %}
+{% block meta_description %}Parent dashboard: review all AI-generated stories across your child profiles. Full oversight with usage stats and theme tracking.{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-bottom:4rem;">
+
+  <div style="padding:2.5rem 0 2rem;">
+    <div class="section-tag">👨‍👩‍👧 Parent Dashboard</div>
+    <h1 style="font-size:2rem;">Parent Dashboard</h1>
+    <p style="color:var(--text-secondary); margin-top:0.35rem;">Review all stories generated across your child profiles.</p>
+  </div>
+
+  <!-- Auth required notice -->
+  <div id="dashAuthNotice" class="empty-state hidden">
+    <div class="empty-state-icon">🔐</div>
+    <div class="empty-state-title">Sign In to View Dashboard</div>
+    <p class="empty-state-desc">Your parent dashboard is available after signing in.</p>
+    <button class="btn btn-primary" onclick="App.openAuthModal()">Sign In / Register</button>
+  </div>
+
+  <!-- Dashboard content -->
+  <div id="dashContent" class="hidden">
+
+    <!-- Stats row -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <span class="stat-icon">📚</span>
+        <div class="stat-number" id="statStories">0</div>
+        <div class="stat-label">Stories Created</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">👧</span>
+        <div class="stat-number" id="statProfiles">0</div>
+        <div class="stat-label">Child Profiles</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🎭</span>
+        <div class="stat-number" id="statThemes">0</div>
+        <div class="stat-label">Themes Explored</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🌍</span>
+        <div class="stat-number" id="statSettings">0</div>
+        <div class="stat-label">Unique Settings</div>
+      </div>
+    </div>
+
+    <!-- Theme breakdown -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2.5rem;">
+
+      <div class="card">
+        <h3 style="margin-bottom:1.25rem; font-size:1.1rem;">📊 Themes Explored</h3>
+        <div id="themeBreakdown">
+          <!-- Populated by dashboard.js -->
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:1.25rem; font-size:1.1rem;">🎂 Age Group Distribution</h3>
+        <div id="ageBreakdown">
+          <!-- Populated by dashboard.js -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- All Stories table -->
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.75rem;">
+        <h3 style="font-size:1.1rem;">📖 All Stories</h3>
+        <div style="display:flex; gap:0.5rem;">
+          <input type="text" class="form-input" id="dashSearch" placeholder="🔍 Search stories..." style="max-width:220px;" oninput="Dashboard.filterStories(this.value)" />
+        </div>
+      </div>
+
+      <div id="dashStoriesList">
+        <!-- Populated by dashboard.js -->
+      </div>
+
+      <div id="dashEmpty" class="empty-state hidden" style="padding:2.5rem 1rem;">
+        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-title">No Stories Yet</div>
+        <p class="empty-state-desc">Generate your first story to see it here.</p>
+        <a href="/app" class="btn btn-accent btn-sm">✨ Create a Story</a>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

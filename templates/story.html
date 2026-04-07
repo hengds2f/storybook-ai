@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Read Story — StoryBook AI{% endblock %}
+{% block meta_description %}Read your personalized AI-generated children's story with read-aloud mode and sentence-by-sentence highlighting.{% endblock %}
+
+{% block content %}
+<div class="story-reader" id="storyReader">
+
+  <!-- Back button -->
+  <div style="margin-bottom:1.5rem;">
+    <a href="/library" class="btn btn-ghost btn-sm">← Back to Library</a>
+  </div>
+
+  <!-- Story Loading State -->
+  <div id="storyLoadingState" style="text-align:center; padding:4rem 2rem;">
+    <div style="font-size:3rem; margin-bottom:1rem; animation:bookBounce 1.2s ease-in-out infinite;">📖</div>
+    <p style="color:var(--text-secondary);">Loading your story<span class="loading-dots"></span></p>
+  </div>
+
+  <!-- Story Content (hidden until loaded) -->
+  <div id="storyContent" style="display:none;">
+
+    <!-- Story Header -->
+    <div class="story-header">
+      <div class="section-tag" id="storyAgeTag">Ages 6–8</div>
+      <h1 id="storyTitle" style="margin: 0.75rem 0;"></h1>
+      <div class="story-meta" id="storyMeta">
+        <!-- Badges injected by reader.js -->
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex; align-items:center; justify-content:center; gap:0.75rem; margin-top:1.5rem; flex-wrap:wrap;">
+        <button class="btn btn-accent" id="readAloudBtn" onclick="Reader.toggleReadAloud()">
+          🔊 Read Aloud
+        </button>
+        <button class="btn btn-ghost btn-sm" id="saveStoryBtn" onclick="Reader.saveStory()" style="display:none;">
+          💾 Save to Library
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="window.location.href='/app'">
+          ✨ New Story
+        </button>
+        <button class="btn btn-danger btn-sm" id="deleteStoryBtn" onclick="Reader.deleteStory()">
+          🗑 Delete
+        </button>
+      </div>
+    </div>
+
+    <!-- Story Sections -->
+    <div id="storySections">
+      <!-- Populated by reader.js -->
+    </div>
+
+  </div>
+
+  <!-- Error State -->
+  <div id="storyErrorState" style="display:none;" class="empty-state">
+    <div class="empty-state-icon">😢</div>
+    <div class="empty-state-title">Story Not Found</div>
+    <p class="empty-state-desc">This story may have been deleted or doesn't exist.</p>
+    <a href="/library" class="btn btn-primary">Go to Library</a>
+  </div>
+
+</div>
+
+<!-- ── Read-Aloud Controls Bar ──────────────────────────────────────── -->
+<div class="read-aloud-bar" id="readAloudBar">
+  <button class="btn btn-ghost btn-sm btn-icon" id="ralPrev" onclick="Reader.prevSentence()" title="Previous sentence">⏮</button>
+  <button class="btn btn-primary btn-sm" id="ralPlayPause" onclick="Reader.togglePlayPause()">⏸ Pause</button>
+  <button class="btn btn-ghost btn-sm btn-icon" id="ralNext" onclick="Reader.nextSentence()" title="Next sentence">⏭</button>
+  <button class="btn btn-ghost btn-sm btn-icon" id="ralStop" onclick="Reader.stopReadAloud()" title="Stop">⏹</button>
+
+  <div class="read-aloud-progress">
+    <span id="ralCurrent">0</span> / <span id="ralTotal">0</span>
+  </div>
+
+  <div class="speed-control">
+    🐢
+    <input type="range" id="ralSpeed" min="0.5" max="2" step="0.1" value="0.9" oninput="Reader.setSpeed(this.value)" />
+    🐇
+    <span id="ralSpeedLabel" style="min-width:32px;">0.9×</span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Pass story_id from Flask to JS
+  window.STORY_ID = "{{ story_id }}";
+</script>
+<script src="{{ url_for('static', filename='js/reader.js') }}"></script>
+{% endblock %}

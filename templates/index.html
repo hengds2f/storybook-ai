@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}StoryBook AI — Magical AI Stories For Every Child{% endblock %}
+{% block meta_description %}Create personalized, AI-generated children's stories with custom characters, themes, settings, and moral lessons. Free, safe, and magical!{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Section ──────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-bg-orb orb-1"></div>
+  <div class="hero-bg-orb orb-2"></div>
+  <div class="hero-bg-orb orb-3"></div>
+
+  <div class="container">
+    <div class="hero-content">
+      <!-- Left: Copy -->
+      <div>
+        <div class="section-tag animate-fadeInUp">✨ AI-Powered Storytelling</div>
+        <h1 class="hero-title animate-fadeInUp animate-delay-1">
+          Magic Stories,<br>
+          <span class="gradient-text">Made Just For</span><br>
+          <span class="accent-text">Your Child</span>
+        </h1>
+        <p class="hero-desc animate-fadeInUp animate-delay-2">
+          Build unique, age-appropriate stories with custom characters, moral lessons, and vivid settings — all in seconds. The AI does the writing; you bring the imagination.
+        </p>
+        <div class="hero-cta animate-fadeInUp animate-delay-3">
+          <button class="btn btn-accent btn-xl" id="heroCtaBtn" onclick="App.onCreateStory()">
+            ✨ Create a Story
+          </button>
+          <a href="/library" class="btn btn-ghost btn-xl">📖 Browse Library</a>
+        </div>
+      </div>
+
+      <!-- Right: Book card showcase -->
+      <div class="hero-visual animate-fadeInUp animate-delay-4">
+        <div class="book-showcase">
+          <div class="book-card">
+            <span class="book-emoji">🦊</span>
+            <div class="book-card-title">Luna's Brave Adventure</div>
+            <div class="book-card-desc">
+              A brave fox named Luna ventures into the enchanted forest to help a tiny injured bird — and discovers the true meaning of courage.
+            </div>
+            <div class="book-tags">
+              <span class="book-tag">🌲 Forest</span>
+              <span class="book-tag">💛 Courage</span>
+              <span class="book-tag">👦 Ages 6–8</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features Section ──────────────────────────────────────────────── -->
+<section class="features-section">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Everything You Need</div>
+      <h2>Storytelling Made Magical</h2>
+      <p style="color:var(--text-secondary); margin-top:0.75rem;">Seven powerful features that make every story unique, safe, and unforgettable.</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">🎭</span>
+        <h3 class="feature-title">Story Parameter Builder</h3>
+        <p class="feature-desc">Customize character names, personality traits, story settings, themes, and moral lessons — your imagination is the only limit.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🎂</span>
+        <h3 class="feature-title">Age-Adaptive Stories</h3>
+        <p class="feature-desc">Stories automatically adjust vocabulary, length, and complexity for ages 3–5, 6–8, and 9–12. Always perfectly pitched.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🏰</span>
+        <h3 class="feature-title">Structured Narrative Arc</h3>
+        <p class="feature-desc">Every story follows a clear arc: Introduction, Challenge, Resolution, and Moral — teaching narrative structure naturally.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <h3 class="feature-title">Illustrated Chapter Breaks</h3>
+        <p class="feature-desc">AI-generated scene descriptions paint vivid pictures between chapters, bringing each moment of the story to life.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📚</span>
+        <h3 class="feature-title">Personal Story Library</h3>
+        <p class="feature-desc">Every story is saved to your child's profile. Revisit favourites, filter by theme, and build a treasured collection.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">👨‍👩‍👧</span>
+        <h3 class="feature-title">Parent Dashboard</h3>
+        <p class="feature-desc">Review all stories generated across child profiles. Full oversight with stats, theme tracking, and story management.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔊</span>
+        <h3 class="feature-title">Read-Aloud Mode</h3>
+        <p class="feature-desc">Listen to stories with text highlighted sentence by sentence. Adjustable speed, play/pause, and a stop button for full control.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ───────────────────────────────────────────────────── -->
+<section style="padding: 5rem 0; position:relative; z-index:1;">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Simple Steps</div>
+      <h2>A Story in 3 Easy Steps</h2>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:2rem;">
+
+      <div class="card text-center" style="padding:2.5rem 2rem;">
+        <div style="font-size:3rem; margin-bottom:1rem;">🧙‍♀️</div>
+        <div style="font-family:'Fredoka One',cursive; font-size:1.1rem; color:var(--primary-light); margin-bottom:0.4rem;">Step 1</div>
+        <h3 style="font-size:1.2rem; margin-bottom:0.6rem;">Build Your Story</h3>
+        <p style="color:var(--text-secondary); font-size:0.95rem;">Pick characters, a setting, a theme, and a moral lesson. Choose the right age group.</p>
+      </div>
+
+      <div class="card text-center" style="padding:2.5rem 2rem;">
+        <div style="font-size:3rem; margin-bottom:1rem;">⚡</div>
+        <div style="font-family:'Fredoka One',cursive; font-size:1.1rem; color:var(--secondary); margin-bottom:0.4rem;">Step 2</div>
+        <h3 style="font-size:1.2rem; margin-bottom:0.6rem;">AI Writes the Magic</h3>
+        <p style="color:var(--text-secondary); font-size:0.95rem;">Our AI model crafts a complete, unique story with a full narrative arc in seconds.</p>
+      </div>
+
+      <div class="card text-center" style="padding:2.5rem 2rem;">
+        <div style="font-size:3rem; margin-bottom:1rem;">🌟</div>
+        <div style="font-family:'Fredoka One',cursive; font-size:1.1rem; color:var(--accent); margin-bottom:0.4rem;">Step 3</div>
+        <h3 style="font-size:1.2rem; margin-bottom:0.6rem;">Read, Save & Share</h3>
+        <p style="color:var(--text-secondary); font-size:0.95rem;">Read aloud with highlighting, save to your child's library, and revisit anytime.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA Banner ─────────────────────────────────────────────────────── -->
+<section style="padding:4rem 0 6rem; position:relative; z-index:1;">
+  <div class="container">
+    <div class="card card-gradient" style="text-align:center; padding:3.5rem 2rem;">
+      <div style="font-size:3rem; margin-bottom:1rem;">🌙</div>
+      <h2 style="margin-bottom:0.75rem;">Ready for bedtime magic?</h2>
+      <p style="color:var(--text-secondary); margin-bottom:2rem; font-size:1.05rem;">
+        Create your first personalized story in under a minute — completely free.
+      </p>
+      <button class="btn btn-accent btn-xl" onclick="App.onCreateStory()">✨ Start Creating Now</button>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

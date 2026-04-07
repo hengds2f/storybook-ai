@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Story Library — StoryBook AI{% endblock %}
+{% block meta_description %}Browse and revisit all of your child's personalized AI-generated stories in one magical library.{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="library-header">
+    <div>
+      <div class="section-tag">📚 Story Library</div>
+      <h1 style="font-size:2rem;">Your Story Library</h1>
+      <p style="color:var(--text-secondary); margin-top:0.3rem;">All stories saved to your child profiles.</p>
+    </div>
+    <a href="/app" class="btn btn-accent">✨ Create New Story</a>
+  </div>
+
+  <!-- Auth required notice -->
+  <div id="libraryAuthNotice" class="empty-state hidden">
+    <div class="empty-state-icon">🔐</div>
+    <div class="empty-state-title">Sign In to See Your Library</div>
+    <p class="empty-state-desc">Create an account to save stories and build your personal collection.</p>
+    <button class="btn btn-primary" onclick="App.openAuthModal()">Sign In / Register</button>
+  </div>
+
+  <!-- Main content (shown when authenticated) -->
+  <div id="libraryMain" class="hidden">
+
+    <!-- Profile Tabs -->
+    <div id="profileTabs" class="profile-tabs">
+      <!-- Populated by dashboard.js -->
+    </div>
+
+    <!-- Filter bar -->
+    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+      <span class="text-small text-muted">Filter by theme:</span>
+      <div class="chip-group" id="themeFilterChips">
+        <div class="chip selected" data-theme="" onclick="Library.filterByTheme('')">All</div>
+        <div class="chip" data-theme="friendship" onclick="Library.filterByTheme('friendship')">💛 Friendship</div>
+        <div class="chip" data-theme="courage" onclick="Library.filterByTheme('courage')">🦁 Courage</div>
+        <div class="chip" data-theme="honesty" onclick="Library.filterByTheme('honesty')">🌟 Honesty</div>
+        <div class="chip" data-theme="kindness" onclick="Library.filterByTheme('kindness')">💗 Kindness</div>
+        <div class="chip" data-theme="perseverance" onclick="Library.filterByTheme('perseverance')">💪 Perseverance</div>
+        <div class="chip" data-theme="teamwork" onclick="Library.filterByTheme('teamwork')">🏆 Teamwork</div>
+      </div>
+    </div>
+
+    <!-- Stories Grid -->
+    <div id="storiesGrid" class="stories-grid">
+      <!-- Populated by library.js -->
+    </div>
+
+    <!-- Empty state -->
+    <div id="libraryEmpty" class="empty-state hidden">
+      <div class="empty-state-icon">📭</div>
+      <div class="empty-state-title">No Stories Yet</div>
+      <p class="empty-state-desc">Create your first story and it will appear here!</p>
+      <a href="/app" class="btn btn-accent">✨ Create a Story</a>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
