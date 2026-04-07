@@ -1,14 +1,24 @@
 import os
-from flask import Flask, render_template, redirect, url_for, session
+from flask import Flask, render_template, session
 from dotenv import load_dotenv
 from services.storage import init_db
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
 def create_app():
     app = Flask(__name__)
+
+    # Trust 1 level of proxy headers (HF Spaces runs behind nginx)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     app.secret_key = os.environ.get("SECRET_KEY", "storybook-dev-secret-change-in-prod")
-    app.config["SESSION_TYPE"] = "filesystem"
+
+    # Session cookie config — must work through HF Spaces HTTPS proxy
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SECURE"] = False   # gunicorn handles HTTP; proxy adds HTTPS
+    app.config["PERMANENT_SESSION_LIFETIME"] = 86400 * 7  # 7 days
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
     # Ensure data directory exists

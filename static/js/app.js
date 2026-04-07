@@ -132,14 +132,12 @@ const App = (() => {
       const data = await res.json();
 
       if (res.ok) {
-        currentUser = { username: data.username };
+        currentUser = { id: data.user_id, username: data.username };
         closeAuthModal();
-        await checkAuth();
         renderNavbar();
         showToast('success', `Welcome back, ${data.username}! 👋`);
-        // Reload to re-run page-specific init with auth state now known
-        // Stay on current page (so /app stays on /app)
-        setTimeout(() => location.reload(), 600);
+        // Navigate to /app — session cookie is fresh, builder will load correctly
+        setTimeout(() => { window.location.href = '/app'; }, 700);
       } else {
         errEl.textContent = data.error || 'Login failed';
         errEl.style.display = 'block';
@@ -174,13 +172,12 @@ const App = (() => {
       const data = await res.json();
 
       if (res.ok) {
-        currentUser = { username: data.username };
+        currentUser = { id: data.user_id, username: data.username };
         closeAuthModal();
-        await checkAuth();
         renderNavbar();
-        showToast('success', `Account created! Welcome, ${data.username}! 🎉`);
-        // Stay on current page after register so user lands on /app if they registered there
-        setTimeout(() => location.reload(), 600);
+        showToast('success', `Welcome, ${data.username}! Let’s create your first story 🎉`);
+        // Navigate to /app — session cookie is fresh, builder will load correctly
+        setTimeout(() => { window.location.href = '/app'; }, 700);
       } else {
         errEl.textContent = data.error || 'Registration failed';
         errEl.style.display = 'block';

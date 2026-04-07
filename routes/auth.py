@@ -40,9 +40,10 @@ def register():
     if not user:
         return jsonify({"error": "Username already exists"}), 409
 
+    session.permanent = True          # honour PERMANENT_SESSION_LIFETIME
     session["user_id"] = user["id"]
     session["username"] = user["username"]
-    return jsonify({"success": True, "username": user["username"]}), 201
+    return jsonify({"success": True, "user_id": user["id"], "username": user["username"]}), 201
 
 
 @auth_bp.route("/api/login", methods=["POST"])
@@ -58,9 +59,10 @@ def login():
     if not bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
         return jsonify({"error": "Invalid username or password"}), 401
 
+    session.permanent = True          # honour PERMANENT_SESSION_LIFETIME
     session["user_id"] = user["id"]
     session["username"] = user["username"]
-    return jsonify({"success": True, "username": user["username"]}), 200
+    return jsonify({"success": True, "user_id": user["id"], "username": user["username"]}), 200
 
 
 @auth_bp.route("/api/logout", methods=["POST"])
