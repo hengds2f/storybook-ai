@@ -10,6 +10,9 @@ const Library = (() => {
   let currentThemeFilter = '';
 
   async function init() {
+    // Wait for App's /api/me check before checking auth state (race condition fix)
+    await App.authReady;
+
     if (!App.isAuthenticated()) {
       const notice = document.getElementById('libraryAuthNotice');
       if (notice) notice.classList.remove('hidden');
@@ -151,6 +154,9 @@ const Dashboard = (() => {
   let filteredStories = [];
 
   async function init() {
+    // Wait for App's /api/me check before checking auth state (race condition fix)
+    await App.authReady;
+
     if (!App.isAuthenticated()) {
       const notice = document.getElementById('dashAuthNotice');
       if (notice) notice.classList.remove('hidden');

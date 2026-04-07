@@ -35,6 +35,10 @@ const Builder = (() => {
       });
     }
 
+    // CRITICAL: wait for App's /api/me check to finish before reading auth state.
+    // Without this, isAuthenticated() always returns false (race condition).
+    await App.authReady;
+
     // Load profiles if authenticated
     if (App.isAuthenticated()) {
       await loadProfiles();
@@ -51,6 +55,7 @@ const Builder = (() => {
     }
 
     initColorPicker();
+    updatePreview(); // Re-render preview now that auth state is known
   }
 
   // ── Profile Management ────────────────────────────────────────────────

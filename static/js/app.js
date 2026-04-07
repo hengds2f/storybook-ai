@@ -7,9 +7,17 @@ const App = (() => {
   let currentUser = null;
   let authModalTab = 'login';
 
+  // ── Auth-ready promise ─────────────────────────────────────────────────
+  // Resolves once the initial /api/me check is complete.
+  // Page-specific scripts (builder, dashboard) MUST await this before
+  // calling isAuthenticated() to avoid the race condition.
+  let _authReadyResolve;
+  const authReady = new Promise(resolve => { _authReadyResolve = resolve; });
+
   // ── Init ────────────────────────────────────────────────────────────────
   async function init() {
     await checkAuth();
+    _authReadyResolve();   // Signal that auth state is now known
     renderNavbar();
     highlightActiveNav();
   }
@@ -129,8 +137,9 @@ const App = (() => {
         await checkAuth();
         renderNavbar();
         showToast('success', `Welcome back, ${data.username}! 👋`);
-        // Reload page to show authenticated state
-        setTimeout(() => location.reload(), 500);
+        // Reload to re-run page-specific init with auth state now known
+        // Stay on current page (so /app stays on /app)
+        setTimeout(() => location.reload(), 600);
       } else {
         errEl.textContent = data.error || 'Login failed';
         errEl.style.display = 'block';
@@ -170,7 +179,8 @@ const App = (() => {
         await checkAuth();
         renderNavbar();
         showToast('success', `Account created! Welcome, ${data.username}! 🎉`);
-        setTimeout(() => location.reload(), 500);
+        // Stay on current page after register so user lands on /app if they registered there
+        setTimeout(() => location.reload(), 600);
       } else {
         errEl.textContent = data.error || 'Registration failed';
         errEl.style.display = 'block';
@@ -284,7 +294,7 @@ const App = (() => {
   document.addEventListener('DOMContentLoaded', init);
 
   return {
-    init, checkAuth, getCurrentUser, isAuthenticated,
+    init, checkAuth, getCurrentUser, isAuthenticated, authReady,
     openAuthModal, closeAuthModal, switchAuthTab,
     handleLogin, handleRegister, logout, onCreateStory,
     showToast, showStoryLoading, hideStoryLoading,
