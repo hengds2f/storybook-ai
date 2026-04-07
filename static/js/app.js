@@ -14,6 +14,8 @@ const App = (() => {
 
   // ── Init ────────────────────────────────────────────────────────────────
   function init() {
+    const prevAuth = isAuthenticated();
+
     // 1. Read server-injected session state SYNCHRONOUSLY — no fetch needed.
     //    Flask bakes window.INITIAL_AUTH into every HTML response from the
     //    session cookie, so we know auth state before any JS runs.
@@ -32,22 +34,35 @@ const App = (() => {
 
     // 2. Background refresh: silently re-validate the session with the server.
     //    This keeps the client in sync if the session expires between page loads.
+    const initialId = currentUser ? currentUser.id : null;
+
     checkAuth().then(() => {
-      renderNavbar();
+      const newId = currentUser ? currentUser.id : null;
+      // ONLY re-render if the state actually changed. This prevents "flickering"
+      // if the background fetch fails or acts differently than the initial load.
+      if (initialId !== newId) {
+        renderNavbar();
+      }
     });
   }
 
   async function checkAuth() {
     try {
       const res = await fetch('/api/me');
+      if (!res.ok) return; // Ignore server errors during background refresh
+
       const data = await res.json();
       if (data.authenticated) {
         currentUser = { id: data.user_id, username: data.username };
       } else {
+        // If the server says we're not authenticated, but we HAD a user from INITIAL_AUTH,
+        // we might be in an iframe with third-party cookies blocked for AJAX but not the page request.
+        // For now, we trust the server's word if it's a valid JSON response.
         currentUser = null;
       }
     } catch (e) {
-      // Network error — keep existing state from INITIAL_AUTH
+      // Network error (e.g. offline) — keep existing state from INITIAL_AUTH
+      console.warn('Background auth check failed:', e);
     }
   }
 

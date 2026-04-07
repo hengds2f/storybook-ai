@@ -17,9 +17,10 @@ def create_app():
     app.secret_key = os.environ.get("SECRET_KEY", "storybook-dev-secret-change-in-prod")
 
     # Session cookie config — must work through HF Spaces HTTPS proxy
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # SameSite=None and Secure=True are REQUIRED for sessions to work in iframes
+    app.config["SESSION_COOKIE_SAMESITE"] = "None"
+    app.config["SESSION_COOKIE_SECURE"] = True
     app.config["SESSION_COOKIE_HTTPONLY"] = True
-    app.config["SESSION_COOKIE_SECURE"] = False   # gunicorn handles HTTP; proxy adds HTTPS
     app.config["PERMANENT_SESSION_LIFETIME"] = 86400 * 7  # 7 days
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
