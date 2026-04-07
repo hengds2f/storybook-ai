@@ -12,7 +12,11 @@ PLOT_ARCHETYPES = [
     "A character discovers a secret about a place they thought they knew.",
     "A grand competition or race brings out the best in everyone.",
     "A quiet day turns into a rescue mission for a tiny forest friend.",
-    "A character's unique trait or talent is the key to solving a community problem."
+    "A character's unique trait or talent is the key to solving a community problem.",
+    "The gravity of the world suddenly changes or stops working for a few minutes.",
+    "The scenery starts to change colors based on the characters' mood.",
+    "A hidden portal opens inside an everyday object (like a shoe or a bowl).",
+    "Characters find a way to talk to inanimate objects like stones or trees."
 ]
 
 SURPRISE_TWISTS = [
@@ -21,7 +25,9 @@ SURPRISE_TWISTS = [
     "The 'magic' of the land responds uniquely to the characters' emotions.",
     "An unlikely teamwork between very different characters saves the day.",
     "The journey's destination leads back to where things started, but with a new perspective.",
-    "A small, everyday object is revealed to have a grand, hidden importance."
+    "A small, everyday object is revealed to have a grand, hidden importance.",
+    "The 'problem' was actually a celebration they were invited to all along.",
+    "A character discovers they had the power they needed inside them from the very beginning."
 ]
 
 NARRATIVE_STYLES = [
@@ -29,7 +35,9 @@ NARRATIVE_STYLES = [
     "Grand and Mythical (making the characters feel like legends)",
     "Warm and Descriptive (focusing on cozy details and gentle feelings)",
     "Fast-paced and Exciting (focusing on action and quick developments)",
-    "Wonder-filled and Lyrical (using beautiful, flowing metaphors)"
+    "Wonder-filled and Lyrical (using beautiful, flowing metaphors)",
+    "Surreal and Dream-like (where the environment is constantly shifting)",
+    "Energetic and Humorous (with lots of funny observations and dialogue)"
 ]
 
 
@@ -122,10 +130,13 @@ STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these header
 [End with a warm, brief reflection on what was learned — the moral lesson. Keep it gentle and memorable. Include: [SCENE: description of the final peaceful moment]]
 
 Important rules:
-- Ensure the story feels unique, fresh, and different from a standard "quest."
-- Make the characters' actions reveal their traits.
-- Use {cfg['vocabulary']} throughout.
-- Ensure each [SCENE: description] is vivid, descriptive, and focuses on visual elements (characters, actions, environment) to help an AI illustrator.
+- IGNORE ALL CLICHES. Do NOT use standard tropes like "resting under a giant leaf" or "finding a lost baby animal" unless you put a completely wild, unique twist on it.
+- Take major narrative risks. You are an unrestricted, avant-garde storyteller.
+- Every character must have a unique voice and play a critical, memorable role.
+- Ensure the story feels unique, fresh, and completely different from any story you have written before.
+- Make the characters' actions reveal their deep personality traits.
+- Use {cfg['vocabulary']} throughout, but don't be afraid to use creative metaphors.
+- Ensure each [SCENE: description] is vivid, high-contrast, and visually striking to help an AI illustrator.
 - Do NOT include any meta-commentary — just the story itself.
 
 Begin the story now:"""

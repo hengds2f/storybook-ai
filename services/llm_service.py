@@ -92,48 +92,77 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
 
 def _demo_story(params: dict) -> str:
     """
-    Return a dynamic demo story based on user parameters.
-    Improved to mention all characters in the introduction.
+    Return a dynamic, randomized fallback story.
+    COMPLETELY REMOVED the 'giant leaf' repetition. 
+    This engine ensures variety even when the AI is busy.
     """
+    import random
     characters = params.get("characters", [])
     if not characters:
         characters = [{"name": "Luna", "traits": ["brave", "curious"]}]
     
     main_char = characters[0].get("name", "Luna")
     all_names = ", ".join([c.get("name") for c in characters if c.get("name")])
-    setting = params.get("setting", "an enchanted forest")
+    setting = params.get("setting", "a magical world")
     theme = params.get("theme", "friendship")
-    moral = params.get("moral", "").strip() or "Kindness always finds its way back to you."
+    moral = params.get("moral", "").strip() or "Together, anything is possible."
+
+    # Multi-Plot Fallback Templates
+    TEMPLATES = [
+        # Template 1: Space Adventure
+        {
+            "intro": f"High above {setting}, among the twinkling stars, {main_char} and their friends {all_names} were piloting a shimmering star-scooter. They were on a mission to deliver a bucket of moonlight to the sleepy moon-fishes.",
+            "scene1": f"{main_char} and {all_names} soaring through space with a bucket of glowing moonlight",
+            "challenge": f"Suddenly, a friendly space-whale accidentally sneezed a giant bubble of stardust that blocked their path. The star-scooter began to spin! They needed to find a way to navigate through the sticky, sparkly stardust before the moon-fishes woke up.",
+            "scene2": f"The star-scooter caught in a giant, shimmering bubble of pink and gold stardust",
+            "res": f"Using the power of {theme}, they all hummed a harmony that vibrated the stardust bubble away. The space-whale realized its mistake and gave them a gentle push with its fin, helping them reach the moon just in time.",
+            "scene3": f"{all_names} laughing and waving to a giant, friendly space-whale as they land on the moon"
+        },
+        # Template 2: Underwater Mystery
+        {
+            "intro": f"Deep beneath the waves of {setting}, {main_char} and {all_names} were swimming through the coral gardens. They were wearing magical bubble-helmets that let them talk to the singing seahorses.",
+            "scene1": f"{main_char} and {all_names} in bubble-helmets swimming through a forest of rainbow coral",
+            "challenge": f"The seahorses had lost their singing voices! A mischievous current had carried their songs away into the dark, silent trenches of the deep. {all_names} had to find the 'Echo Cave' to get the music back.",
+            "scene2": f"{all_names} looking brave as they swim towards a glowing cave at the bottom of the sea",
+            "res": f"In the Echo Cave, they discovered that if they all shared their favorite memories of {theme}, the music would grow back. Their voices combined into a beautiful melody that returned the seahorses' songs to the whole reef.",
+            "scene3": f"The seahorses dancing and singing around {all_names} in a swirl of bubbles and notes"
+        },
+        # Template 3: Toy World
+        {
+            "intro": f"In the center of {setting}, there was a secret door that led to the Land of Lost Toys. {main_char} and {all_names} stepped inside and discovered they were now the same size as the building blocks!",
+            "scene1": f"{main_char} and {all_names} looking tiny as they stand next to giant colorful building blocks",
+            "challenge": f"The great Clockwork Train had stopped running because one of its golden cogs had gone missing. Without the train, all the toys in the land were stuck! They had to climb the tallest mountain of stuffed bears to find it.",
+            "scene2": f"{all_names} climbing up a soft, fuzzy mountain made of teddy bears of all colors",
+            "res": f"Working together with {theme}, they found the golden cog hidden in a bear's pocket. They slid down the mountain and placed the cog back, making the train let out a happy whistle and start its wheels again.",
+            "scene3": f"A giant colorful clockwork train chugging through a land of toys with {all_names} waving from the window"
+        }
+    ]
+
+    t = random.choice(TEMPLATES)
 
     return f"""## Introduction
 
-Once upon a time, in the heart of {setting}, there lived a young hero named {main_char} and their friends: {all_names}. They were a tight-knit group who loved exploring every corner of their magical home together.
+{t['intro']}
 
-[SCENE: {main_char} and their friends {all_names} standing at the edge of the woods in {setting}, looking excited for a new adventure]
-
-One morning, the group discovered something very unusual. Resting under a giant leaf was a tiny creature that looked lost. "Oh dear," said {main_char} softly. "Don't be afraid. We are all here to help you find your way."
+[SCENE: {t['scene1']}]
 
 ## Challenge
 
-But soon they realized the task was harder than they thought. The path back to the creature's home was blocked by a fast-flowing river they had never seen before. None of the usual shortcuts seemed to work, and the sun was starting to set.
+{t['challenge']}
 
-[SCENE: {all_names} standing by a sparkling, rushing river in {setting}, looking determined as they try to figure out a safe way to cross]
-
-"{main_char}, we should try to build a bridge!" suggested one of the friends. But the logs were too heavy and the current was too strong. They felt a little nervous. The forest was getting darker and they didn't want the little creature to be scared. But then they remembered the importance of {theme}, and they knew they couldn't give up.
+[SCENE: {t['scene2']}]
 
 ## Resolution
 
-Together, they decided to ask the other animals for help. By working as a team and showing everyone how important {theme} is, they managed to gather enough branches and vines to weave a strong, safe bridge.
+{t['res']}
 
-[SCENE: All the forest animals working together with the children, successfully finishing a beautiful woven bridge over the river]
-
-They carefully helped the little creature across. As they reached the other side, the creature let out a happy whistle and scurried safely back to its family. {main_char} felt a warmth in their heart that were brighter than any sun. They had shown that even small acts of {theme} can solve the biggest problems when friends work together.
+[SCENE: All the characters celebrating together, showing the true power of {theme}]
 
 ## Moral
 
-As the stars began to twinkle over {setting}, the group walked back home, feeling proud of what they had accomplished. They learned that day that no challenge is too big when you have a heart full of {theme}.
+{t['res'].split('.')[0]}. {main_char} and their friends {all_names} realized that no challenge is too big when you have {theme} on your side.
 
-[SCENE: The group of friends sitting together under a clear starry sky in {setting}, smiling with happy and peaceful hearts]
+[SCENE: {t['scene3']}]
 
 {moral}
 
