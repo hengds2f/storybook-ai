@@ -216,14 +216,22 @@ const Dashboard = (() => {
 
       if (data.success) {
         App.showToast('success', `Success! Illustration generated: ${data.image_url}`);
-        // Optionally open the image in a new tab for verification
         if (confirm('AI Painter test successful! Would you like to view the test illustration?')) {
           window.open(data.full_path, '_blank');
         }
       } else {
         App.showToast('error', `Test Failed: ${data.message}`);
         console.error('AI Test Failure Details:', data);
-        alert(`AI Painter Test Failed.\n\nError: ${data.message}\n\nHint: ${data.hint || 'Check server logs for details.'}`);
+        
+        let auditMsg = `AI Painter Test Failed.\n\nERROR: ${data.message}\n\nDETAILED AUDIT LOG:\n`;
+        if (data.audit_log) {
+          data.audit_log.forEach(log => {
+            auditMsg += `• [${log.model}] Status: ${log.status} - ${log.message}\n`;
+          });
+        }
+        auditMsg += `\nHint: ${data.hint}`;
+        
+        alert(auditMsg);
       }
     } catch (e) {
       console.error('AI Test Error:', e);

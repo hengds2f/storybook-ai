@@ -141,6 +141,9 @@ def story_page(story_id):
     return render_template("story.html", story_id=story_id, session_user=session_user)
 
 
+from services.image_service import generate_image, generate_image_with_audit
+
+
 @story_bp.route("/api/test-paint")
 def test_paint():
     """Hidden diagnostic endpoint to test a single image generation with full error reporting."""
@@ -148,25 +151,27 @@ def test_paint():
         return jsonify({"error": "Not authenticated"}), 401
     
     prompt = request.args.get("prompt", "a magical golden castle in the clouds, whimsical children's book style")
-    print(f"[DIAGNOSTIC] Starting test-paint for: {prompt}")
+    print(f"[DIAGNOSTIC] Starting audit-paint for: {prompt}")
     
     # We mock params for the test
     test_params = {"setting": "magical world", "age_group": "6-8"}
     
-    image_url = generate_image(prompt, test_params)
+    image_url, audit_log = generate_image_with_audit(prompt, test_params)
     
     if image_url:
         return jsonify({
             "success": True, 
             "image_url": image_url, 
             "full_path": f"/static/{image_url}",
-            "message": "Illustration successful!"
+            "message": "Illustration successful!",
+            "audit_log": audit_log
         }), 200
     else:
         return jsonify({
             "success": False, 
-            "message": "Illustration failed. Check server logs for exact Hugging Face error details.",
-            "hint": "Ensure your HF_TOKEN has 'Read' access and you are not over quota."
+            "message": "Illustration failed across all models in pool.",
+            "audit_log": audit_log,
+            "hint": "Check the audit_log for specific status codes (e.g. 403, 503)."
         }), 500
 
 

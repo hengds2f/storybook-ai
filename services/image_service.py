@@ -22,112 +22,98 @@ GENERATED_IMAGE_DIR = os.path.join("static", "generated_images")
 
 
 def generate_image(description: str, story_params: dict) -> str | None:
+    """Standard wrapper for image generation."""
+    image_url, _ = generate_image_with_audit(description, story_params)
+    return image_url
+
+
+def generate_image_with_audit(description: str, story_params: dict) -> tuple[str | None, list]:
     """
-    Generate a story illustration using a resilient pool of AI models.
-    Automatically transitions to fallback models if the primary is busy or fails.
-    Returns the path to the saved image relative to the static directory.
+    Generate a story illustration with a detailed audit log of every attempt.
+    Returns (image_url, audit_logs).
     """
+    audit_logs = []
+    
     token = get_hf_token()
     if not token:
-        print("[IMAGE] HF_TOKEN is not set, skipping image generation.")
-        return None
+        msg = "HF_TOKEN is not set in environment."
+        print(f"[IMAGE] {msg}")
+        audit_logs.append({"model": "System", "status": "ERROR", "message": msg})
+        return None, audit_logs
 
     # Ensure the directory exists and is writable
     try:
         os.makedirs(GENERATED_IMAGE_DIR, exist_ok=True)
-        # Check writability
         test_file = os.path.join(GENERATED_IMAGE_DIR, ".write_test")
         with open(test_file, "w") as f:
             f.write("test")
         os.remove(test_file)
     except Exception as e:
-        print(f"[IMAGE][CRITICAL] Directory {GENERATED_IMAGE_DIR} is NOT WRITABLE: {e}")
-        return None
+        msg = f"Directory {GENERATED_IMAGE_DIR} is NOT WRITABLE: {e}"
+        print(f"[IMAGE][CRITICAL] {msg}")
+        audit_logs.append({"model": "System", "status": "FILE_ERROR", "message": msg})
+        return None, audit_logs
 
-    # Build a descriptive prompt from the scene description and story context
+    # Build a descriptive prompt
     setting = story_params.get("setting", "a magical place")
     age_group = story_params.get("age_group", "6-8")
-    
-    # Adjust style based on age group
-    style = "vibrant, colorful, children's storybook illustration style, high-quality, friendly"
-    if age_group == "3-5":
-        style = "simple, bold, very colorful, soft edges, cute children's book art"
-    elif age_group == "9-12":
-        style = "detailed, painterly, whimsical children's fantasy illustration, rich colors"
-
+    style = "vibrant children's storybook illustration, friendly"
     full_prompt = f"{description}, {setting}, {style}, digital art, highly detailed"
 
     # Attempt generation with the Paint Pool
     for model in PAINT_POOL:
+        log_entry = {"model": model, "status": "PENDING", "message": ""}
         try:
             url = f"{HF_API_URL}{model}"
             headers = get_hf_headers()
-            
-            # Simple payload for Inference API
-            # wait_for_model=True is CRITICAL for free-tier users to avoid 503 errors
             payload = {
                 "inputs": full_prompt,
-                "options": {
-                    "wait_for_model": True,
-                    "use_cache": False
-                }
+                "options": {"wait_for_model": True, "use_cache": False}
             }
 
-            print(f"[IMAGE] Painting with {model}...")
+            print(f"[IMAGE] Auditing {model}...")
             response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
             
-            print(f"[IMAGE] {model} status: {response.status_code}")
-
-            image_data = None
+            log_entry["status"] = response.status_code
+            
             if response.status_code == 200:
-                # Some models return JSON if there's an internal error even with 200
                 content_type = response.headers.get("Content-Type", "")
                 if "application/json" in content_type:
                     error_data = response.json()
-                    print(f"[IMAGE] {model} returned JSON instead of image: {error_data}")
+                    log_entry["message"] = f"JSON returned instead of image: {error_data}"
+                    audit_logs.append(log_entry)
                     continue
                 
+                # Success!
                 image_data = response.content
-            
-            elif response.status_code == 503:
-                # Even with wait_for_model, sometimes it fails. Log the reason.
-                try:
-                    error_msg = response.json()
-                except:
-                    error_msg = response.text[:100]
-                print(f"[IMAGE] {model} loading/unavailable (503): {error_msg}")
-                continue
-            else:
-                try:
-                    error_detail = response.json()
-                except:
-                    error_detail = response.text[:100]
-                print(f"[IMAGE] {model} failed with status {response.status_code}: {error_detail}")
-                continue
-
-            # If we successfully got image data, process and save it
-            if image_data:
-                # Generate a unique filename
                 filename = f"story_{uuid.uuid4().hex[:8]}.webp"
                 filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
 
-                # Process and save the image
+                image = Image.open(io.BytesIO(image_data))
+                if image.width > 1200:
+                    image.thumbnail((1200, 1200))
+                image.save(filepath, "WEBP", quality=85)
+                
+                log_entry["message"] = "SUCCESS"
+                audit_logs.append(log_entry)
+                return f"generated_images/{filename}", audit_logs
+            
+            else:
+                # Try to parse error message
                 try:
-                    image = Image.open(io.BytesIO(image_data))
-                    # Resize if the image is too large for web serving
-                    if image.width > 1200:
-                        image.thumbnail((1200, 1200))
-                    
-                    image.save(filepath, "WEBP", quality=85)
-                    print(f"[IMAGE] Success! Saved to {filepath}")
-                    return f"generated_images/{filename}"
-                except Exception as img_err:
-                    print(f"[IMAGE] Failed to process image data from {model}: {img_err}")
-                    continue
+                    error_detail = response.json()
+                    log_entry["message"] = str(error_detail)
+                except:
+                    log_entry["message"] = response.text[:150]
+                
+                audit_logs.append(log_entry)
+                continue
 
         except Exception as e:
-            print(f"[IMAGE] Request error for model {model}: {e}")
+            log_entry["status"] = "EXCEPTION"
+            log_entry["message"] = str(e)
+            audit_logs.append(log_entry)
             continue
 
     print("[IMAGE] All models in the Paint Pool failed. Chapter will use fallback icon.")
-    return None
+    return None, audit_logs
