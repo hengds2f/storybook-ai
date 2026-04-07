@@ -32,8 +32,17 @@ def generate_image(description: str, story_params: dict) -> str | None:
         print("[IMAGE] HF_TOKEN is not set, skipping image generation.")
         return None
 
-    # Ensure the directory exists
-    os.makedirs(GENERATED_IMAGE_DIR, exist_ok=True)
+    # Ensure the directory exists and is writable
+    try:
+        os.makedirs(GENERATED_IMAGE_DIR, exist_ok=True)
+        # Check writability
+        test_file = os.path.join(GENERATED_IMAGE_DIR, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("test")
+        os.remove(test_file)
+    except Exception as e:
+        print(f"[IMAGE][CRITICAL] Directory {GENERATED_IMAGE_DIR} is NOT WRITABLE: {e}")
+        return None
 
     # Build a descriptive prompt from the scene description and story context
     setting = story_params.get("setting", "a magical place")
@@ -55,7 +64,14 @@ def generate_image(description: str, story_params: dict) -> str | None:
             headers = get_hf_headers()
             
             # Simple payload for Inference API
-            payload = {"inputs": full_prompt}
+            # wait_for_model=True is CRITICAL for free-tier users to avoid 503 errors
+            payload = {
+                "inputs": full_prompt,
+                "options": {
+                    "wait_for_model": True,
+                    "use_cache": False
+                }
+            }
 
             print(f"[IMAGE] Painting with {model}...")
             response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
@@ -64,22 +80,29 @@ def generate_image(description: str, story_params: dict) -> str | None:
 
             image_data = None
             if response.status_code == 200:
+                # Some models return JSON if there's an internal error even with 200
+                content_type = response.headers.get("Content-Type", "")
+                if "application/json" in content_type:
+                    error_data = response.json()
+                    print(f"[IMAGE] {model} returned JSON instead of image: {error_data}")
+                    continue
+                
                 image_data = response.content
             
             elif response.status_code == 503:
-                # Model is loading — wait briefly and try once more before falling back
-                print(f"[IMAGE] {model} is loading, retrying once...")
-                import time
-                time.sleep(RETRY_WAIT_TIME)
-                response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
-                
-                if response.status_code == 200:
-                    image_data = response.content
-                else:
-                    print(f"[IMAGE] {model} still busy, falling back to next model...")
-                    continue
+                # Even with wait_for_model, sometimes it fails. Log the reason.
+                try:
+                    error_msg = response.json()
+                except:
+                    error_msg = response.text[:100]
+                print(f"[IMAGE] {model} loading/unavailable (503): {error_msg}")
+                continue
             else:
-                print(f"[IMAGE] {model} failed ({response.status_code}), falling back...")
+                try:
+                    error_detail = response.json()
+                except:
+                    error_detail = response.text[:100]
+                print(f"[IMAGE] {model} failed with status {response.status_code}: {error_detail}")
                 continue
 
             # If we successfully got image data, process and save it
@@ -89,19 +112,21 @@ def generate_image(description: str, story_params: dict) -> str | None:
                 filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
 
                 # Process and save the image
-                image = Image.open(io.BytesIO(image_data))
-                # Resize if the image is too large for web serving
-                if image.width > 1200:
-                    image.thumbnail((1200, 1200))
-                
-                image.save(filepath, "WEBP", quality=85)
-
-                print(f"[IMAGE] Success! Saved to {filepath}")
-                # Return the relative path for the frontend
-                return f"generated_images/{filename}"
+                try:
+                    image = Image.open(io.BytesIO(image_data))
+                    # Resize if the image is too large for web serving
+                    if image.width > 1200:
+                        image.thumbnail((1200, 1200))
+                    
+                    image.save(filepath, "WEBP", quality=85)
+                    print(f"[IMAGE] Success! Saved to {filepath}")
+                    return f"generated_images/{filename}"
+                except Exception as img_err:
+                    print(f"[IMAGE] Failed to process image data from {model}: {img_err}")
+                    continue
 
         except Exception as e:
-            print(f"[IMAGE] Model {model} error: {e}")
+            print(f"[IMAGE] Request error for model {model}: {e}")
             continue
 
     print("[IMAGE] All models in the Paint Pool failed. Chapter will use fallback icon.")

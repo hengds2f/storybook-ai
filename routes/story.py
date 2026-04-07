@@ -141,6 +141,35 @@ def story_page(story_id):
     return render_template("story.html", story_id=story_id, session_user=session_user)
 
 
+@story_bp.route("/api/test-paint")
+def test_paint():
+    """Hidden diagnostic endpoint to test a single image generation with full error reporting."""
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    prompt = request.args.get("prompt", "a magical golden castle in the clouds, whimsical children's book style")
+    print(f"[DIAGNOSTIC] Starting test-paint for: {prompt}")
+    
+    # We mock params for the test
+    test_params = {"setting": "magical world", "age_group": "6-8"}
+    
+    image_url = generate_image(prompt, test_params)
+    
+    if image_url:
+        return jsonify({
+            "success": True, 
+            "image_url": image_url, 
+            "full_path": f"/static/{image_url}",
+            "message": "Illustration successful!"
+        }), 200
+    else:
+        return jsonify({
+            "success": False, 
+            "message": "Illustration failed. Check server logs for exact Hugging Face error details.",
+            "hint": "Ensure your HF_TOKEN has 'Read' access and you are not over quota."
+        }), 500
+
+
 @story_bp.route("/api/ai-status")
 def ai_status():
     """Diagnostic endpoint to check AI configuration."""
