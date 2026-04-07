@@ -44,7 +44,7 @@ def generate():
 
     # Build and send prompt
     prompt = build_prompt(params)
-    raw_text = generate_story(prompt, max_tokens=age_cfg["max_tokens"])
+    raw_text = generate_story(prompt, params, max_tokens=age_cfg["max_tokens"])
 
     # Parse the structured output
     content = parse_story(raw_text, params)

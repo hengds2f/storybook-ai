@@ -19,7 +19,7 @@ def _get_headers() -> dict:
     return headers
 
 
-def generate_story(prompt: str, max_tokens: int = 900) -> str:
+def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
     """
     Call the Hugging Face Inference API to generate a story.
     Uses chat-completion format for Llama/Mistral instruct models.
@@ -28,7 +28,7 @@ def generate_story(prompt: str, max_tokens: int = 900) -> str:
     token = os.environ.get("HF_TOKEN", "")
 
     if not token:
-        return _demo_story(prompt)
+        return _demo_story(params)
 
     for model in [PRIMARY_MODEL, FALLBACK_MODEL]:
         try:
@@ -40,7 +40,7 @@ def generate_story(prompt: str, max_tokens: int = 900) -> str:
             continue
 
     # If all models fail, return a demo story
-    return _demo_story(prompt)
+    return _demo_story(params)
 
 
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
@@ -97,39 +97,52 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     return None
 
 
-def _demo_story(prompt: str) -> str:
+def _demo_story(params: dict) -> str:
     """
-    Return a demo story when no API token is configured.
-    This allows testing the full app UI without an API key.
+    Return a dynamic demo story based on user parameters.
+    This provides a fallback when no API token is configured.
     """
-    return """## Introduction
+    characters = params.get("characters", [])
+    main_char = characters[0].get("name", "Luna") if characters else "Luna"
+    traits = ", ".join(characters[0].get("traits", ["brave", "curious"])) if characters else "brave and curious"
+    setting = params.get("setting", "an enchanted forest")
+    theme = params.get("theme", "kindness")
+    moral = params.get("moral", "Kindness always finds its way back to you.")
 
-Once upon a time, in a cozy little village nestled between rolling green hills, there lived a young fox named Luna. Luna had bright amber eyes, a fluffy russet tail, and a heart full of curiosity.
+    # Second character if available
+    friend = characters[1].get("name", "Benny") if len(characters) > 1 else "Benny"
+    friend_traits = ", ".join(characters[1].get("traits", ["kind", "fast"])) if len(characters) > 1 else "kind and loyal"
 
-[SCENE: Luna standing at the edge of her village, the morning sun painting the sky in shades of orange and pink, a path stretching ahead into a sparkling forest]
+    return f"""## Introduction
 
-One morning, Luna discovered something wonderful — a tiny bluebird with a broken wing sitting under the old oak tree by the village fountain. "Oh dear," said Luna softly, her ears perking up with concern. "You must be frightened all alone."
+Once upon a time, in the heart of {setting}, there lived a young hero named {main_char}. {main_char} was known by everyone for being {traits}, and they loved exploring every corner of their magical home.
+
+[SCENE: {main_char} standing at the edge of the woods in {setting}, the morning sun painting the sky in beautiful colors, ready for a new adventure]
+
+One morning, {main_char} discovered something very unusual. Resting under a giant leaf was a tiny creature that looked lost. "Oh dear," said {main_char} softly. "Don't be afraid. I'm here to help you find your way."
 
 ## Challenge
 
-Luna wanted to help the little bird, whose name was Pip, but she didn't know how to heal a broken wing. None of her friends had seen anything like it before either.
+But soon {main_char} realized the task was harder than they thought. The path back to the creature's home was blocked by a fast-flowing river they had never seen before. None of the usual shortcuts seemed to work, and the sun was starting to set.
 
-[SCENE: Luna and her friends Benny the rabbit and Cleo the hedgehog gathered around little Pip, all looking worried but thoughtful, their heads together in problem-solving]
+[SCENE: {main_char} and {friend} standing by a sparkling, rushing river in {setting}, looking determined as they try to figure out a safe way to cross]
 
-"We should try to find the wise old Owl," suggested Benny, twitching his nose nervously. But the Owl lived in the deep part of the forest — a place none of them had ever dared to go. Luna felt her heart beat a little faster. The forest was dark and the path was unknown. But then she looked down at little Pip, trembling and frightened, and she knew what she had to do.
+"{main_char}, we should try to build a bridge!" suggested {friend}, who had just arrived to help. But the logs were too heavy and the current was too strong. {main_char} felt a little nervous. The forest was getting darker and they didn't want the little creature to be scared. But then {main_char} remembered the importance of {theme}, and they knew they couldn't give up.
 
 ## Resolution
 
-Together, Luna, Benny, and Cleo ventured into the deep forest. They helped each other over logs, shared their snacks when they got tired, and cheered each other on when the shadows felt too deep. Finally, they reached the Owl's great tree.
+Together, {main_char} and {friend} decided to ask the other animals for help. By working as a team and showing everyone how important {theme} is, they managed to gather enough branches and vines to weave a strong, safe bridge.
 
-[SCENE: The friends emerging into a sunlit clearing where a magnificent old owl sits in a grand tree, his eyes wise and kind, welcoming them warmly]
+[SCENE: All the forest animals working together under the guidance of {main_char} and {friend}, successfully finishing a beautiful woven bridge over the river]
 
-The wise Owl carefully wrapped Pip's tiny wing and showed Luna how to make a little splint from a soft twig and a piece of moss. "You showed great kindness today," said the Owl gently, "and even greater courage." As they carried Pip safely back to the village, the little bird began to sing — a sweet, grateful melody that danced through the whole forest.
+They carefully helped the little creature across. As they reached the other side, the creature let out a happy whistle and scurried safely back to its family. {main_char} felt a warmth in their heart that were brighter than any sun. They had shown that even small acts of {theme} can solve the biggest problems.
 
 ## Moral
 
-Weeks later, when Pip's wing was fully healed and he could fly again, he returned every single morning to sing outside Luna's window. Luna learned that day that helping someone who is afraid costs nothing but a little courage — and that kindness always finds its way back to you.
+As the stars began to twinkle over {setting}, {main_char} and {friend} walked back home, feeling proud of what they had accomplished. {main_char} learned that day that no challenge is too big when you have a heart full of {theme}.
 
-[SCENE: Luna watching Pip soar freely into a bright blue sky above the village, her friends beside her, all of them smiling with warm and happy hearts]
+[SCENE: {main_char} and {friend} sitting together under a clear starry sky in {setting}, smiling with happy and peaceful hearts]
 
-*And they all lived with kindness in their hearts, ever after.*"""
+{moral}
+
+*And they all lived with {theme} in their hearts, ever after.*"""
