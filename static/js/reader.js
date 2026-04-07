@@ -117,6 +117,7 @@ const Reader = (() => {
             </div>
           ` : `
             <div class="chapter-icons">${icon}</div>
+            <script>console.warn("Illustration missing for chapter: ${App.escapeHtml(section.title)}");</script>
           `}
 
           ${section.scene_description ? `

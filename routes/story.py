@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, request, jsonify, session, render_template
 from services.llm_service import generate_story
 from services.story_builder import build_prompt, parse_story, get_age_config
@@ -55,8 +56,13 @@ def generate():
     for section in content.get("sections", []):
         scene_desc = section.get("scene_description")
         if scene_desc:
-            print(f"[STORY] Generating illustration for: {scene_desc[:50]}...")
-            section["image_url"] = generate_image(scene_desc, params)
+            print(f"[STORY] Attempting illustration for: {scene_desc[:60]}...")
+            url = generate_image(scene_desc, params)
+            if url:
+                print(f"[STORY] Illustration success: {url}")
+                section["image_url"] = url
+            else:
+                print(f"[STORY] Illustration failed (check image_service logs)")
 
     # Save to database
     story = save_story(
@@ -132,3 +138,22 @@ def story_page(story_id):
     if "user_id" in session:
         session_user = {"user_id": session["user_id"], "username": session["username"]}
     return render_template("story.html", story_id=story_id, session_user=session_user)
+
+
+@story_bp.route("/api/ai-status")
+def ai_status():
+    """Diagnostic endpoint to check AI configuration."""
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    token = os.environ.get("HF_TOKEN", "")
+    data_dir = os.path.join("static", "generated_images")
+    
+    status = {
+        "hf_token_configured": bool(token),
+        "data_dir_exists": os.path.exists(data_dir),
+        "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
+        "primary_model": "black-forest-labs/FLUX.1-schnell"
+    }
+    
+    return jsonify(status), 200

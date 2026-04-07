@@ -35,5 +35,8 @@ dist/
 build/
 *.egg-info/
 
+# Temporary files
+tmp/
+
 # Story illustrations
 static/generated_images/

@@ -4,6 +4,10 @@ import uuid
 import base64
 from PIL import Image
 import io
+from dotenv import load_dotenv
+
+# Load env variables for standalone usage
+load_dotenv()
 
 
 HF_IMAGE_API_URL = "https://api-inference.huggingface.co/models/"
@@ -43,15 +47,12 @@ def generate_image(description: str, story_params: dict) -> str | None:
         url = f"{HF_IMAGE_API_URL}{DEFAULT_IMAGE_MODEL}"
         headers = {"Authorization": f"Bearer {token}"}
         
-        payload = {
-            "inputs": full_prompt,
-            "parameters": {
-                "num_inference_steps": 4,
-                "guidance_scale": 0.0
-            }
-        }
+        # Standard payload for HF Inference API
+        payload = {"inputs": full_prompt}
 
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response = requests.post(url, headers=headers, json=payload, timeout=90)
+        
+        print(f"[IMAGE] Model response status: {response.status_code}")
 
         if response.status_code == 200:
             # The API returns binary image data
@@ -71,12 +72,35 @@ def generate_image(description: str, story_params: dict) -> str | None:
             return f"generated_images/{filename}"
 
         elif response.status_code == 503:
-            print(f"[IMAGE] Model {DEFAULT_IMAGE_MODEL} is loading, retrying...")
+            # Avoid infinite recursion with a depth limit if needed, 
+            # but for now let's just log and return None after one retry
+            print(f"[IMAGE] Model {DEFAULT_IMAGE_MODEL} is loading, retrying once...")
             import time
-            time.sleep(10)
-            return generate_image(description, story_params)
+            time.sleep(20)
+            # Second attempt
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            if response.status_code == 200:
+                image_data = response.content
+            else:
+                print(f"[IMAGE] Model still loading or failed on retry: {response.status_code}")
+                return None
         else:
             print(f"[IMAGE] API Error {response.status_code}: {response.text[:200]}")
+            return None
+
+        # Process and save the image if we have data
+        if 'image_data' in locals():
+            # Generate a unique filename
+            filename = f"story_{uuid.uuid4().hex[:8]}.webp"
+            filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
+
+            # Process and save the image
+            image = Image.open(io.BytesIO(image_data))
+            # Optional: Resize/compress if needed
+            image.save(filepath, "WEBP", quality=85)
+
+            # Return the relative path for the frontend (e.g. /static/generated_images/story_...)
+            return f"generated_images/{filename}"
 
     except Exception as e:
         print(f"[IMAGE] Generation failed: {e}")
