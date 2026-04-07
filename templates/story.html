@@ -38,6 +38,9 @@
         <button class="btn btn-ghost btn-sm" onclick="window.location.href='/app'">
           ✨ New Story
         </button>
+        <button class="btn btn-ghost btn-sm" onclick="window.location.href='/api/story/{{ story_id }}/pdf'">
+          📄 Download PDF
+        </button>
         <button class="btn btn-danger btn-sm" id="deleteStoryBtn" onclick="Reader.deleteStory()">
           🗑 Delete
         </button>

@@ -141,6 +141,40 @@ def story_page(story_id):
     return render_template("story.html", story_id=story_id, session_user=session_user)
 
 
+import io
+from flask import send_file
+from services.pdf_service import generate_story_pdf
+
+
+@story_bp.route("/api/story/<story_id>/pdf")
+def download_pdf(story_id):
+    """Generate and download a PDF version of the story."""
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    story = get_story_by_id(story_id)
+    if not story:
+        return jsonify({"error": "Story not found"}), 404
+        
+    try:
+        # Generate the PDF bytes
+        pdf_bytes = generate_story_pdf(story)
+        
+        # Safe filename
+        safe_title = "".join([c for c in story.get('title', 'story') if c.isalnum() or c==' ']).rstrip()
+        filename = f"{safe_title}.pdf"
+        
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        print(f"[PDF] Error generating PDF: {e}")
+        return jsonify({"error": "Could not generate PDF"}), 500
+
+
 from services.image_service import generate_image, generate_image_with_audit
 
 
