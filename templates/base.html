@@ -93,7 +93,14 @@
     {% block content %}{% endblock %}
   </main>
 
-  <!-- ── Global App Script ──────────────────────────────────────────── -->
+  <!-- ── Server-injected auth state (eliminates async race condition) ──── -->
+  <script>
+    // This is set by Flask from the session before any JS runs.
+    // app.js reads this synchronously — no fetch('/api/me') needed on load.
+    window.INITIAL_AUTH = {{ (session_user | tojson) if session_user else 'null' }};
+  </script>
+
+  <!-- ── Global App Script ──────────────────────────────────────────────── -->
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>

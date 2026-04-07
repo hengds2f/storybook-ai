@@ -120,4 +120,7 @@ def delete_story_route(story_id):
 
 @story_bp.route("/story/<story_id>")
 def story_page(story_id):
-    return render_template("story.html", story_id=story_id)
+    session_user = None
+    if "user_id" in session:
+        session_user = {"user_id": session["user_id"], "username": session["username"]}
+    return render_template("story.html", story_id=story_id, session_user=session_user)

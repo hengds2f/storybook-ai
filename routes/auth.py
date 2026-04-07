@@ -133,16 +133,23 @@ def get_profile_route(profile_id):
 
 # ── Page routes ───────────────────────────────────────────────────────────────
 
+def _session_user():
+    """Return current user dict from Flask session for template injection."""
+    if "user_id" in session:
+        return {"user_id": session["user_id"], "username": session["username"]}
+    return None
+
+
 @auth_bp.route("/app")
 def app_page():
-    return render_template("builder.html")
+    return render_template("builder.html", session_user=_session_user())
 
 
 @auth_bp.route("/library")
 def library_page():
-    return render_template("library.html")
+    return render_template("library.html", session_user=_session_user())
 
 
 @auth_bp.route("/dashboard")
 def dashboard_page():
-    return render_template("dashboard.html")
+    return render_template("dashboard.html", session_user=_session_user())

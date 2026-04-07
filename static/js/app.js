@@ -8,18 +8,33 @@ const App = (() => {
   let authModalTab = 'login';
 
   // ── Auth-ready promise ─────────────────────────────────────────────────
-  // Resolves once the initial /api/me check is complete.
-  // Page-specific scripts (builder, dashboard) MUST await this before
-  // calling isAuthenticated() to avoid the race condition.
+  // Resolves the moment auth state is known (synchronously from INITIAL_AUTH).
   let _authReadyResolve;
   const authReady = new Promise(resolve => { _authReadyResolve = resolve; });
 
   // ── Init ────────────────────────────────────────────────────────────────
-  async function init() {
-    await checkAuth();
-    _authReadyResolve();   // Signal that auth state is now known
+  function init() {
+    // 1. Read server-injected session state SYNCHRONOUSLY — no fetch needed.
+    //    Flask bakes window.INITIAL_AUTH into every HTML response from the
+    //    session cookie, so we know auth state before any JS runs.
+    if (window.INITIAL_AUTH) {
+      currentUser = window.INITIAL_AUTH;
+    } else {
+      currentUser = null;
+    }
+
+    // Resolve authReady immediately — page-specific scripts can now check
+    // isAuthenticated() without any async wait.
+    _authReadyResolve();
+
     renderNavbar();
     highlightActiveNav();
+
+    // 2. Background refresh: silently re-validate the session with the server.
+    //    This keeps the client in sync if the session expires between page loads.
+    checkAuth().then(() => {
+      renderNavbar();
+    });
   }
 
   async function checkAuth() {
@@ -32,7 +47,7 @@ const App = (() => {
         currentUser = null;
       }
     } catch (e) {
-      currentUser = null;
+      // Network error — keep existing state from INITIAL_AUTH
     }
   }
 

@@ -6,6 +6,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
+
 def create_app():
     app = Flask(__name__)
 
@@ -37,13 +38,19 @@ def create_app():
     app.register_blueprint(story_bp)
     app.register_blueprint(dashboard_bp)
 
+    def get_session_user():
+        """Return session user dict for template injection, or None."""
+        if "user_id" in session:
+            return {"user_id": session["user_id"], "username": session["username"]}
+        return None
+
     @app.route("/")
     def index():
-        return render_template("index.html")
+        return render_template("index.html", session_user=get_session_user())
 
     @app.errorhandler(404)
     def not_found(e):
-        return render_template("index.html"), 404
+        return render_template("index.html", session_user=get_session_user()), 404
 
     @app.errorhandler(500)
     def server_error(e):
