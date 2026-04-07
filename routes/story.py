@@ -153,7 +153,8 @@ def ai_status():
         "hf_token_configured": bool(token),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_model": "black-forest-labs/FLUX.1-schnell"
+        "primary_image_model": "black-forest-labs/FLUX.1-schnell",
+        "fallback_image_model": "stabilityai/stable-diffusion-xl-base-1.0"
     }
     
     return jsonify(status), 200

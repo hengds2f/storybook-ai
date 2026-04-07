@@ -9,7 +9,10 @@ from services.hf_utils import (
     DEFAULT_TIMEOUT, RETRY_WAIT_TIME
 )
 
-DEFAULT_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell"
+# Primary model — high quality
+PRIMARY_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell"
+# Fallback model — high reliability
+FALLBACK_IMAGE_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
 
 # Directory for storing generated images
 GENERATED_IMAGE_DIR = os.path.join("static", "generated_images")
@@ -18,6 +21,7 @@ GENERATED_IMAGE_DIR = os.path.join("static", "generated_images")
 def generate_image(description: str, story_params: dict) -> str | None:
     """
     Generate a story illustration using Hugging Face's Image Inference API.
+    Attempts multiple models if the primary one is unavailable.
     Returns the path to the saved image relative to the static directory.
     """
     token = get_hf_token()
@@ -41,66 +45,57 @@ def generate_image(description: str, story_params: dict) -> str | None:
 
     full_prompt = f"{description}, {setting}, {style}, digital art, highly detailed"
 
-    try:
-        url = f"{HF_API_URL}{DEFAULT_IMAGE_MODEL}"
-        headers = get_hf_headers()
-        
-        # Standard payload for HF Inference API
-        payload = {"inputs": full_prompt}
-
-        response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
-        
-        print(f"[IMAGE] Model response status: {response.status_code}")
-
-        if response.status_code == 200:
-            # The API returns binary image data
-            image_data = response.content
+    # Attempt generation with a list of prioritized models
+    for model in [PRIMARY_IMAGE_MODEL, FALLBACK_IMAGE_MODEL]:
+        try:
+            url = f"{HF_API_URL}{model}"
+            headers = get_hf_headers()
             
-            # Generate a unique filename
-            filename = f"story_{uuid.uuid4().hex[:8]}.webp"
-            filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
+            # Standard payload for HF Inference API
+            payload = {"inputs": full_prompt}
 
-            # Process and save the image
-            image = Image.open(io.BytesIO(image_data))
-            # Optional: Resize/compress if needed
-            image.save(filepath, "WEBP", quality=85)
-
-            # Return the relative path for the frontend (e.g. /static/generated_images/story_...)
-            # Flask serves from /static, so we return generated_images/story_...
-            return f"generated_images/{filename}"
-
-        elif response.status_code == 503:
-            # Avoid infinite recursion with a depth limit if needed, 
-            # but for now let's just log and return None after one retry
-            print(f"[IMAGE] Model {DEFAULT_IMAGE_MODEL} is loading, retrying once...")
-            import time
-            time.sleep(RETRY_WAIT_TIME)
-            # Second attempt
+            print(f"[IMAGE] Attempting illustration with {model}...")
             response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
+            
+            print(f"[IMAGE] Model {model} responded with status: {response.status_code}")
+
+            image_data = None
             if response.status_code == 200:
                 image_data = response.content
+            
+            elif response.status_code == 503:
+                # Model is loading — wait and try this model one more time
+                print(f"[IMAGE] Model {model} is loading, retrying once in {RETRY_WAIT_TIME}s...")
+                import time
+                time.sleep(RETRY_WAIT_TIME)
+                response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
+                
+                if response.status_code == 200:
+                    image_data = response.content
+                else:
+                    print(f"[IMAGE] Model {model} still loading or failed on retry ({response.status_code}), moving to next...")
+                    continue
             else:
-                print(f"[IMAGE] Model still loading or failed on retry: {response.status_code}")
-                return None
-        else:
-            print(f"[IMAGE] API Error {response.status_code}: {response.text[:200]}")
-            return None
+                # Other errors — move to next model
+                print(f"[IMAGE] Model {model} failed with status {response.status_code}, moving to next...")
+                continue
 
-        # Process and save the image if we have data
-        if 'image_data' in locals():
-            # Generate a unique filename
-            filename = f"story_{uuid.uuid4().hex[:8]}.webp"
-            filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
+            # If we successfully got image data, process and save it
+            if image_data:
+                # Generate a unique filename
+                filename = f"story_{uuid.uuid4().hex[:8]}.webp"
+                filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
 
-            # Process and save the image
-            image = Image.open(io.BytesIO(image_data))
-            # Optional: Resize/compress if needed
-            image.save(filepath, "WEBP", quality=85)
+                # Process and save the image
+                image = Image.open(io.BytesIO(image_data))
+                # Optional: Resize/compress if needed
+                image.save(filepath, "WEBP", quality=85)
 
-            # Return the relative path for the frontend (e.g. /static/generated_images/story_...)
-            return f"generated_images/{filename}"
+                # Return the relative path for the frontend
+                return f"generated_images/{filename}"
 
-    except Exception as e:
-        print(f"[IMAGE] Generation failed: {e}")
+        except Exception as e:
+            print(f"[IMAGE] Generation failed for model {model}: {e}")
+            continue
 
     return None
