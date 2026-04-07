@@ -200,6 +200,40 @@ const Dashboard = (() => {
     }
   }
 
+  async function runAiTest() {
+    const btn = document.getElementById('btnRunAiTest');
+    if (!btn) return;
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '🕒 Painting...';
+    
+    App.showToast('info', 'Starting AI Painter test... please wait about 15-20s.');
+
+    try {
+      const res = await fetch('/api/test-paint');
+      const data = await res.json();
+
+      if (data.success) {
+        App.showToast('success', `Success! Illustration generated: ${data.image_url}`);
+        // Optionally open the image in a new tab for verification
+        if (confirm('AI Painter test successful! Would you like to view the test illustration?')) {
+          window.open(data.full_path, '_blank');
+        }
+      } else {
+        App.showToast('error', `Test Failed: ${data.message}`);
+        console.error('AI Test Failure Details:', data);
+        alert(`AI Painter Test Failed.\n\nError: ${data.message}\n\nHint: ${data.hint || 'Check server logs for details.'}`);
+      }
+    } catch (e) {
+      console.error('AI Test Error:', e);
+      App.showToast('error', 'Critical Error: Could not connect to the diagnostic endpoint.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+
   async function loadData() {
     try {
       const res = await fetch('/api/dashboard');
@@ -352,5 +386,5 @@ const Dashboard = (() => {
     }
   });
 
-  return { init, filterStories };
+  return { init, filterStories, runAiTest };
 })();
