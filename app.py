@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from services.storage import init_db
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+# StoryBook AI - v1.0.1 - Auth Synchronization Fix
 load_dotenv()
 
 
