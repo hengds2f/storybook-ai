@@ -4,13 +4,11 @@ import uuid
 import base64
 from PIL import Image
 import io
-from dotenv import load_dotenv
+from services.hf_utils import (
+    HF_API_URL, get_hf_token, get_hf_headers, 
+    DEFAULT_TIMEOUT, RETRY_WAIT_TIME
+)
 
-# Load env variables for standalone usage
-load_dotenv()
-
-
-HF_IMAGE_API_URL = "https://api-inference.huggingface.co/models/"
 DEFAULT_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell"
 
 # Directory for storing generated images
@@ -22,7 +20,7 @@ def generate_image(description: str, story_params: dict) -> str | None:
     Generate a story illustration using Hugging Face's Image Inference API.
     Returns the path to the saved image relative to the static directory.
     """
-    token = os.environ.get("HF_TOKEN", "")
+    token = get_hf_token()
     if not token:
         print("[IMAGE] HF_TOKEN is not set, skipping image generation.")
         return None
@@ -44,13 +42,13 @@ def generate_image(description: str, story_params: dict) -> str | None:
     full_prompt = f"{description}, {setting}, {style}, digital art, highly detailed"
 
     try:
-        url = f"{HF_IMAGE_API_URL}{DEFAULT_IMAGE_MODEL}"
-        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{HF_API_URL}{DEFAULT_IMAGE_MODEL}"
+        headers = get_hf_headers()
         
         # Standard payload for HF Inference API
         payload = {"inputs": full_prompt}
 
-        response = requests.post(url, headers=headers, json=payload, timeout=90)
+        response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
         
         print(f"[IMAGE] Model response status: {response.status_code}")
 
@@ -76,9 +74,9 @@ def generate_image(description: str, story_params: dict) -> str | None:
             # but for now let's just log and return None after one retry
             print(f"[IMAGE] Model {DEFAULT_IMAGE_MODEL} is loading, retrying once...")
             import time
-            time.sleep(20)
+            time.sleep(RETRY_WAIT_TIME)
             # Second attempt
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
             if response.status_code == 200:
                 image_data = response.content
             else:

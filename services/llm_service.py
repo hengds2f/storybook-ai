@@ -1,22 +1,15 @@
 import os
 import requests
 import json
-
-
-HF_API_URL = "https://api-inference.huggingface.co/models/"
+from services.hf_utils import (
+    HF_API_URL, get_hf_token, get_hf_headers, 
+    DEFAULT_TIMEOUT, RETRY_WAIT_TIME
+)
 
 # Primary model — fast, good quality, free tier
 PRIMARY_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
 # Fallback model if primary is unavailable
 FALLBACK_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
-
-
-def _get_headers() -> dict:
-    token = os.environ.get("HF_TOKEN", "")
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return headers
 
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
@@ -25,7 +18,7 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
     Uses chat-completion format for Llama/Mistral instruct models.
     Falls back gracefully if the API is unavailable.
     """
-    token = os.environ.get("HF_TOKEN", "")
+    token = get_hf_token()
 
     if not token:
         return _demo_story(params)
@@ -46,7 +39,7 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call using messages format."""
     url = f"{HF_API_URL}{model}/v1/chat/completions"
-    headers = _get_headers()
+    headers = get_hf_headers()
 
     payload = {
         "model": model,
@@ -66,7 +59,7 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
         "stream": False
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=120)
+    response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
 
     if response.status_code == 200:
         data = response.json()
@@ -84,8 +77,8 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     elif response.status_code == 503:
         print(f"[LLM] Model {model} is loading, retrying...")
         import time
-        time.sleep(15)
-        response = requests.post(url, headers=headers, json=payload, timeout=120)
+        time.sleep(RETRY_WAIT_TIME)
+        response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
         if response.status_code == 200:
             data = response.json()
             if "choices" in data and data["choices"]:
