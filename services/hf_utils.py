@@ -3,7 +3,8 @@ import requests
 from dotenv import load_dotenv
 
 # Base URL for Hugging Face Inference API
-HF_API_URL = "https://api-inference.huggingface.co/models/"
+# New Hugging Face Inference Router (Legacy Inference API is decommissioned)
+HF_API_URL = "https://router.huggingface.co/"
 
 # Standard timeout for all AI service requests
 DEFAULT_TIMEOUT = 120
