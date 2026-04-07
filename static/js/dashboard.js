@@ -167,6 +167,37 @@ const Dashboard = (() => {
     if (content) content.classList.remove('hidden');
 
     await loadData();
+    await loadAiStatus();
+  }
+
+  async function loadAiStatus() {
+    const container = document.getElementById('aiStatusContainer');
+    const dot = document.getElementById('aiStatusDot');
+    const text = document.getElementById('aiStatusText');
+
+    if (!container || !dot || !text) return;
+
+    try {
+      const res = await fetch('/api/ai-status');
+      const data = await res.json();
+
+      container.classList.remove('hidden');
+
+      if (data.token_valid) {
+        dot.className = 'status-dot online';
+        text.textContent = `AI Painter: Online (${data.token_user})`;
+        text.title = `Models in pool: ${data.paint_pool_models.join(', ')}`;
+      } else {
+        dot.className = 'status-dot offline';
+        text.textContent = `AI Painter: Offline (${data.token_error || 'Check Space Secrets'})`;
+        text.title = 'Hugging Face Token is missing or invalid. Check your Space Settings.';
+        App.showToast('warning', 'AI Painter is offline. Check Space Secrets for HF_TOKEN.');
+      }
+    } catch (e) {
+      console.error('Failed to fetch AI status:', e);
+      dot.className = 'status-dot warning';
+      text.textContent = 'AI Painter: Connection Error';
+    }
   }
 
   async function loadData() {

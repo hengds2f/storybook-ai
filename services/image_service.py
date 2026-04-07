@@ -5,14 +5,17 @@ import base64
 from PIL import Image
 import io
 from services.hf_utils import (
-    HF_API_URL, get_hf_token, get_hf_headers, 
-    DEFAULT_TIMEOUT, RETRY_WAIT_TIME
+    HF_API_URL, get_hf_headers, 
+    DEFAULT_TIMEOUT, RETRY_WAIT_TIME, get_hf_token
 )
 
-# Primary model — high quality
-PRIMARY_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell"
-# Fallback model — high reliability
-FALLBACK_IMAGE_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
+# AI Painter Pool — Prioritized by quality, but fallback to speed/reliability
+PAINT_POOL = [
+    "black-forest-labs/FLUX.1-schnell",           # Best Quality (Fast FLUX)
+    "stabilityai/stable-diffusion-xl-base-1.0",    # Superior SD (SD-XL)
+    "stabilityai/stable-diffusion-2-1",            # High Reliability (SD-2.1)
+    "runwayml/stable-diffusion-v1-5"               # Maximum Availability (Fastest)
+]
 
 # Directory for storing generated images
 GENERATED_IMAGE_DIR = os.path.join("static", "generated_images")
@@ -20,8 +23,8 @@ GENERATED_IMAGE_DIR = os.path.join("static", "generated_images")
 
 def generate_image(description: str, story_params: dict) -> str | None:
     """
-    Generate a story illustration using Hugging Face's Image Inference API.
-    Attempts multiple models if the primary one is unavailable.
+    Generate a story illustration using a resilient pool of AI models.
+    Automatically transitions to fallback models if the primary is busy or fails.
     Returns the path to the saved image relative to the static directory.
     """
     token = get_hf_token()
@@ -45,27 +48,27 @@ def generate_image(description: str, story_params: dict) -> str | None:
 
     full_prompt = f"{description}, {setting}, {style}, digital art, highly detailed"
 
-    # Attempt generation with a list of prioritized models
-    for model in [PRIMARY_IMAGE_MODEL, FALLBACK_IMAGE_MODEL]:
+    # Attempt generation with the Paint Pool
+    for model in PAINT_POOL:
         try:
             url = f"{HF_API_URL}{model}"
             headers = get_hf_headers()
             
-            # Standard payload for HF Inference API
+            # Simple payload for Inference API
             payload = {"inputs": full_prompt}
 
-            print(f"[IMAGE] Attempting illustration with {model}...")
+            print(f"[IMAGE] Painting with {model}...")
             response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
             
-            print(f"[IMAGE] Model {model} responded with status: {response.status_code}")
+            print(f"[IMAGE] {model} status: {response.status_code}")
 
             image_data = None
             if response.status_code == 200:
                 image_data = response.content
             
             elif response.status_code == 503:
-                # Model is loading — wait and try this model one more time
-                print(f"[IMAGE] Model {model} is loading, retrying once in {RETRY_WAIT_TIME}s...")
+                # Model is loading — wait briefly and try once more before falling back
+                print(f"[IMAGE] {model} is loading, retrying once...")
                 import time
                 time.sleep(RETRY_WAIT_TIME)
                 response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
@@ -73,11 +76,10 @@ def generate_image(description: str, story_params: dict) -> str | None:
                 if response.status_code == 200:
                     image_data = response.content
                 else:
-                    print(f"[IMAGE] Model {model} still loading or failed on retry ({response.status_code}), moving to next...")
+                    print(f"[IMAGE] {model} still busy, falling back to next model...")
                     continue
             else:
-                # Other errors — move to next model
-                print(f"[IMAGE] Model {model} failed with status {response.status_code}, moving to next...")
+                print(f"[IMAGE] {model} failed ({response.status_code}), falling back...")
                 continue
 
             # If we successfully got image data, process and save it
@@ -88,14 +90,19 @@ def generate_image(description: str, story_params: dict) -> str | None:
 
                 # Process and save the image
                 image = Image.open(io.BytesIO(image_data))
-                # Optional: Resize/compress if needed
+                # Resize if the image is too large for web serving
+                if image.width > 1200:
+                    image.thumbnail((1200, 1200))
+                
                 image.save(filepath, "WEBP", quality=85)
 
+                print(f"[IMAGE] Success! Saved to {filepath}")
                 # Return the relative path for the frontend
                 return f"generated_images/{filename}"
 
         except Exception as e:
-            print(f"[IMAGE] Generation failed for model {model}: {e}")
+            print(f"[IMAGE] Model {model} error: {e}")
             continue
 
+    print("[IMAGE] All models in the Paint Pool failed. Chapter will use fallback icon.")
     return None

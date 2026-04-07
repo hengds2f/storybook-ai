@@ -6,7 +6,8 @@ from services.storage import (
     save_story, get_stories_for_profile, get_story_by_id,
     delete_story, get_profile_by_id
 )
-from services.image_service import generate_image
+from services.image_service import generate_image, PAINT_POOL
+from services.hf_utils import check_token_status
 
 story_bp = Blueprint("story", __name__)
 
@@ -146,15 +147,19 @@ def ai_status():
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
     
-    token = os.environ.get("HF_TOKEN", "")
+    # Run the new token validity check
+    hf_status = check_token_status()
     data_dir = os.path.join("static", "generated_images")
     
     status = {
-        "hf_token_configured": bool(token),
+        "token_valid": hf_status.get("valid", False),
+        "token_user": hf_status.get("username", "Unknown"),
+        "token_error": hf_status.get("reason", ""),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_image_model": "black-forest-labs/FLUX.1-schnell",
-        "fallback_image_model": "stabilityai/stable-diffusion-xl-base-1.0"
+        "primary_image_model": PAINT_POOL[0],
+        "paint_pool_size": len(PAINT_POOL),
+        "paint_pool_models": PAINT_POOL
     }
     
     return jsonify(status), 200
