@@ -1,4 +1,36 @@
 import re
+import random
+
+
+# ── Narrative Variety Pools ──────────────────────────────────────────────────
+
+PLOT_ARCHETYPES = [
+    "A mysterious object is discovered in a familiar place.",
+    "A character must set out on an unexpected journey to find something lost.",
+    "A misunderstanding between friends leads to a funny or magical adventure.",
+    "A new, unusual arrival in the land changes everything.",
+    "A character discovers a secret about a place they thought they knew.",
+    "A grand competition or race brings out the best in everyone.",
+    "A quiet day turns into a rescue mission for a tiny forest friend.",
+    "A character's unique trait or talent is the key to solving a community problem."
+]
+
+SURPRISE_TWISTS = [
+    "The solution to the problem is found in an act of kindness rather than magic.",
+    "A character who seemed scary or mean turns out to be just misunderstood and lonely.",
+    "The 'magic' of the land responds uniquely to the characters' emotions.",
+    "An unlikely teamwork between very different characters saves the day.",
+    "The journey's destination leads back to where things started, but with a new perspective.",
+    "A small, everyday object is revealed to have a grand, hidden importance."
+]
+
+NARRATIVE_STYLES = [
+    "Whimsical and Rhythmic (using soft rhymes and playfulness)",
+    "Grand and Mythical (making the characters feel like legends)",
+    "Warm and Descriptive (focusing on cozy details and gentle feelings)",
+    "Fast-paced and Exciting (focusing on action and quick developments)",
+    "Wonder-filled and Lyrical (using beautiful, flowing metaphors)"
+]
 
 
 # ── Age configuration ─────────────────────────────────────────────────────────
@@ -31,7 +63,7 @@ AGE_CONFIG = {
 def build_prompt(params: dict) -> str:
     """
     Assemble a structured story generation prompt from user parameters.
-    Strengthened to ensure all characters are included.
+    Enhanced with Randomized Narrative Variables for maximum uniqueness.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
@@ -52,12 +84,19 @@ def build_prompt(params: dict) -> str:
     theme = params.get("theme", "friendship")
     moral = params.get("moral", "").strip() or "Kindness and friendship make the world a better place."
 
+    # Select randomized narrative seeds
+    archetype = random.choice(PLOT_ARCHETYPES)
+    twist = random.choice(SURPRISE_TWISTS)
+    style = random.choice(NARRATIVE_STYLES)
+
     prompt = f"""You are a master children's story writer. Write a complete, original, age-appropriate children's story featuring ALL characters listed below.
 
-AGE GROUP: {cfg['label']}
-- Use {cfg['vocabulary']}
-- Story should be {cfg['length']}
-- Narrative complexity: {cfg['complexity']}
+NARRATIVE SPECIFICATIONS:
+- Age Group: {cfg['label']}
+- Vocabulary: {cfg['vocabulary']}
+- Tone & Style: {style}
+- Plot Archetype: {archetype}
+- Inclusion Rule: You MUST include EVERY character listed in the CHARACTERS section.
 
 CHARACTERS (Exactly {char_count} characters):
 {characters_text}
@@ -74,7 +113,7 @@ STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these header
 [Write a vivid, engaging opening that introduces the main character(s) and setting. Hook the reader immediately. Include a scene description in brackets like this: [SCENE: description of what readers would see]]
 
 ## Challenge
-[Present a clear problem or challenge the character(s) must face. Build tension appropriately for the age group. Include a scene description: [SCENE: description]]
+[Present a clear problem or challenge the character(s) must face. {archetype} {twist}. Include a scene description: [SCENE: description]]
 
 ## Resolution
 [Show how the character(s) overcome the challenge using the story theme. Make it satisfying and earned. Include a scene description: [SCENE: description]]
@@ -83,13 +122,11 @@ STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these header
 [End with a warm, brief reflection on what was learned — the moral lesson. Keep it gentle and memorable. Include: [SCENE: description of the final peaceful moment]]
 
 Important rules:
-- You MUST include EVERY character listed in the CHARACTERS section. Every character must speak, act, or contribute to the plot.
-- Write in an engaging, warm narrative voice
-- Make the story feel complete and satisfying
-- Ensure the moral arises naturally from the story events
-- Use age-appropriate vocabulary throughout
+- Ensure the story feels unique, fresh, and different from a standard "quest."
+- Make the characters' actions reveal their traits.
+- Use {cfg['vocabulary']} throughout.
 - Ensure each [SCENE: description] is vivid, descriptive, and focuses on visual elements (characters, actions, environment) to help an AI illustrator.
-- Do NOT include any meta-commentary — just the story itself
+- Do NOT include any meta-commentary — just the story itself.
 
 Begin the story now:"""
 

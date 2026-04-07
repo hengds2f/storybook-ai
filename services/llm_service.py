@@ -54,8 +54,8 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
             }
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.85,
-        "top_p": 0.9,
+        "temperature": 0.95,
+        "top_p": 0.95,
         "stream": False
     }
 
