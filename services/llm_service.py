@@ -6,24 +6,31 @@ from services.hf_utils import (
     DEFAULT_TIMEOUT, RETRY_WAIT_TIME
 )
 
-# Primary model — more creative, excellent quality
+# Model Chain
+# 1. Mistral (Most Creative)
+# 2. Zephyr (Fast & Reliable)
+# 3. Llama (Last Resort)
 PRIMARY_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
-# Fallback model
-FALLBACK_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
+BACKUP_MODEL = "HuggingFaceH4/zephyr-7b-beta"
+FINAL_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
+
+from services.story_pools import (
+    PLOT_ARCHETYPES, SURPRISE_TWISTS, NARRATIVE_STYLES, 
+    SUB_GENRES, PLOT_SPARKS, ATMOSPHERES
+)
 
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
     """
     Call the Hugging Face Inference API to generate a story.
-    Uses chat-completion format for Llama/Mistral instruct models.
-    Falls back gracefully if the API is unavailable.
+    Uses a 3-model fallback chain for maximum variety and redundancy.
     """
     token = get_hf_token()
 
     if not token:
         return _demo_story(params)
 
-    for model in [PRIMARY_MODEL, FALLBACK_MODEL]:
+    for model in [PRIMARY_MODEL, BACKUP_MODEL, FINAL_MODEL]:
         try:
             result = _call_hf_api(model, prompt, max_tokens)
             if result:
@@ -32,7 +39,7 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
             print(f"[LLM] Model {model} failed: {e}")
             continue
 
-    # If all models fail, return a demo story
+    # If all models fail, return a dynamic fallback story
     return _demo_story(params)
 
 
@@ -41,12 +48,13 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     url = f"{HF_API_URL}{model}/v1/chat/completions"
     headers = get_hf_headers()
 
+    # System instruction reinforces the 'Taboo' and 'No Repeats' rules
     payload = {
         "model": model,
         "messages": [
             {
                 "role": "system",
-                "content": "You are a warm, creative children's story writer. You write engaging, age-appropriate stories with vivid imagery and clear moral lessons."
+                "content": "You are a warm, imaginative children's story writer. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
             },
             {
                 "role": "user",
@@ -54,47 +62,37 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
             }
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.95,
+        "temperature": 0.95, 
         "top_p": 0.95,
         "stream": False
     }
-
-    response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
-
-    if response.status_code == 200:
-        data = response.json()
-        # Chat completions format
-        if "choices" in data and data["choices"]:
-            return data["choices"][0]["message"]["content"].strip()
-        # Legacy text-generation format
-        if isinstance(data, list) and data:
-            generated = data[0].get("generated_text", "")
-            # Remove the prompt from the output
-            if prompt in generated:
-                return generated.replace(prompt, "").strip()
-            return generated.strip()
-
-    elif response.status_code == 503:
-        print(f"[LLM] Model {model} is loading, retrying...")
-        import time
-        time.sleep(RETRY_WAIT_TIME)
+    
+    try:
         response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
         if response.status_code == 200:
             data = response.json()
             if "choices" in data and data["choices"]:
                 return data["choices"][0]["message"]["content"].strip()
-
-    else:
-        print(f"[LLM] API error {response.status_code}: {response.text[:200]}")
+        elif response.status_code == 503:
+            # Model loading, wait and retry once
+            import time
+            time.sleep(RETRY_WAIT_TIME)
+            response = requests.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
+            if response.status_code == 200:
+                data = response.json()
+                if "choices" in data and data["choices"]:
+                    return data["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"[LLM] Error calling model {model}: {e}")
 
     return None
 
 
 def _demo_story(params: dict) -> str:
     """
-    Return a dynamic, randomized fallback story.
-    COMPLETELY REMOVED the 'giant leaf' repetition. 
-    This engine ensures variety even when the AI is busy.
+    Return a Dynamic Fallback Story.
+    Unlike the previous static templates, this builds a unique story structure locally
+    using random pools to ensure no two backups are ever the same.
     """
     import random
     characters = params.get("characters", [])
@@ -103,68 +101,43 @@ def _demo_story(params: dict) -> str:
     
     main_char = characters[0].get("name", "Luna")
     friends = [c.get("name") for c in characters[1:] if c.get("name")]
-    friend_text = ", ".join(friends) if friends else "their robot companions"
-    all_names = ", ".join([c.get("name") for c in characters if c.get("name")])
-    setting = params.get("setting", "a magical world")
-    theme = params.get("theme", "friendship")
-    moral = params.get("moral", "").strip() or "Together, anything is possible."
+    friend_text = ", ".join(friends) if friends else "their shadow-pal"
+    
+    setting = params.get("setting", "a hidden world")
+    theme = params.get("theme", "teamwork")
+    moral = params.get("moral", "").strip() or "The secret to success is believing in each other."
 
-    # Multi-Plot Fallback Templates
-    TEMPLATES = [
-        # Template 1: Space Adventure
-        {
-            "intro": f"High above {setting}, among the twinkling stars, {main_char} and their friends {friend_text} were piloting a shimmering star-scooter. They were on a mission to deliver a bucket of moonlight to the sleepy moon-fishes.",
-            "scene1": f"{main_char} and {friend_text} soaring through space with a bucket of glowing moonlight",
-            "challenge": f"Suddenly, a friendly space-whale accidentally sneezed a giant bubble of stardust that blocked their path. The star-scooter began to spin! They needed to find a way to navigate through the sticky, sparkly stardust before the moon-fishes woke up.",
-            "scene2": f"{main_char} and {friend_text} caught in a giant, shimmering bubble of pink and gold stardust",
-            "res": f"Using the power of {theme}, they all hummed a harmony that vibrated the stardust bubble away. The space-whale realized its mistake and gave them a gentle push with its fin, helping them reach the moon just in time.",
-            "scene3": f"{main_char} and {friend_text} laughing and waving to a giant, friendly space-whale as they land on the moon"
-        },
-        # Template 2: Underwater Mystery
-        {
-            "intro": f"Deep beneath the waves of {setting}, {main_char} and {friend_text} were swimming through the coral gardens. They were wearing magical bubble-helmets that let them talk to the singing seahorses.",
-            "scene1": f"{main_char} and {friend_text} in bubble-helmets swimming through a forest of rainbow coral",
-            "challenge": f"The seahorses had lost their singing voices! A mischievous current had carried their songs away into the dark, silent trenches of the deep. They had to find the 'Echo Cave' to get the music back.",
-            "scene2": f"{main_char} and {friend_text} looking brave as they swim towards a glowing cave at the bottom of the sea",
-            "res": f"In the Echo Cave, they discovered that if they all shared their favorite memories of {theme}, the music would grow back. Their voices combined into a beautiful melody that returned the seahorses' songs to the whole reef.",
-            "scene3": f"The seahorses dancing and singing around {main_char} and {friend_text} in a swirl of bubbles and notes"
-        },
-        # Template 3: Toy World
-        {
-            "intro": f"In the center of {setting}, there was a secret door that led to the Land of Lost Toys. {main_char} and {friend_text} stepped inside and discovered they were now the same size as the building blocks!",
-            "scene1": f"{main_char} and {friend_text} looking tiny as they stand next to giant colorful building blocks",
-            "challenge": f"The great Clockwork Train had stopped running because one of its golden cogs had gone missing. Without the train, all the toys in the land were stuck! They had to climb the tallest mountain of stuffed bears to find it.",
-            "scene2": f"{main_char} and {friend_text} climbing up a soft, fuzzy mountain made of teddy bears of all colors",
-            "res": f"Working together with {theme}, they found the golden cog hidden in a bear's pocket. They slid down the mountain and placed the cog back, making the train let out a happy whistle and start its wheels again.",
-            "scene3": f"A giant colorful clockwork train chugging through a land of toys with {main_char} and {friend_text} waving from the window"
-        }
-    ]
-
-    t = random.choice(TEMPLATES)
+    # Pick dynamic variety seeds locally
+    arch = random.choice(PLOT_ARCHETYPES)
+    twist = random.choice(SURPRISE_TWISTS)
+    style = random.choice(NARRATIVE_STYLES)
+    spark = random.choice(PLOT_SPARKS)
+    atm = random.choice(ATMOSPHERES)
+    gen = random.choice(SUB_GENRES)
 
     return f"""## Introduction
 
-{t['intro']}
+The air in {setting} was {atm}. In the middle of this {gen} world, {main_char} and {friend_text} were suddenly faced with a strange discovery: {spark} It was a moment they would never forget.
 
-[SCENE: {t['scene1']}]
+[SCENE: {main_char} and {friend_text} looking amazed at {spark} in the {atm} light of {setting}]
 
 ## Challenge
 
-{t['challenge']}
+But things grew even more complicated. {arch} Every way they turned, {twist} The path forward was blocked by a puzzle that only {theme} could solve.
 
-[SCENE: {t['scene2']}]
+[SCENE: {main_char} and {friend_text} working together to overcome a difficult obstacle in the {gen} landscape]
 
 ## Resolution
 
-{t['res']}
+Finally, by focusing on {theme}, they found the answer. It wasn't an easy victory, but it was earned. The world of {setting} began to glow with a new light, and the {gen} mystery was solved forever.
 
-[SCENE: All the characters celebrating together, showing the true power of {theme}]
+[SCENE: The characters celebrating their victory as the {atm} world of {setting} transforms around them]
 
 ## Moral
 
-{t['res'].split('.')[0]}. {main_char} and their friends {all_names} realized that no challenge is too big when you have {theme} on your side.
+{main_char} looked at {friend_text} and realized that {moral} Some adventures are hard, but they are always better when shared.
 
-[SCENE: {t['scene3']}]
+[SCENE: A beautiful, final moment showing {main_char} and their friends in a peaceful {setting}]
 
 {moral}
 

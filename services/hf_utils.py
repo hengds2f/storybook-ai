@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 # New Hugging Face Inference Router (Legacy Inference API is decommissioned)
 HF_API_URL = "https://router.huggingface.co/"
 
-# Standard timeout for all AI service requests
-DEFAULT_TIMEOUT = 120
+# Standard timeout for all AI service requests (increased for higher story complexity)
+DEFAULT_TIMEOUT = 180
 
 # Standard wait time for 503 Service Unavailable (model loading)
 RETRY_WAIT_TIME = 15
