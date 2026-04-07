@@ -93,48 +93,47 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
 def _demo_story(params: dict) -> str:
     """
     Return a dynamic demo story based on user parameters.
-    This provides a fallback when no API token is configured.
+    Improved to mention all characters in the introduction.
     """
     characters = params.get("characters", [])
-    main_char = characters[0].get("name", "Luna") if characters else "Luna"
-    traits = ", ".join(characters[0].get("traits", ["brave", "curious"])) if characters else "brave and curious"
+    if not characters:
+        characters = [{"name": "Luna", "traits": ["brave", "curious"]}]
+    
+    main_char = characters[0].get("name", "Luna")
+    all_names = ", ".join([c.get("name") for c in characters if c.get("name")])
     setting = params.get("setting", "an enchanted forest")
-    theme = params.get("theme", "kindness")
-    moral = params.get("moral", "Kindness always finds its way back to you.")
-
-    # Second character if available
-    friend = characters[1].get("name", "Benny") if len(characters) > 1 else "Benny"
-    friend_traits = ", ".join(characters[1].get("traits", ["kind", "fast"])) if len(characters) > 1 else "kind and loyal"
+    theme = params.get("theme", "friendship")
+    moral = params.get("moral", "").strip() or "Kindness always finds its way back to you."
 
     return f"""## Introduction
 
-Once upon a time, in the heart of {setting}, there lived a young hero named {main_char}. {main_char} was known by everyone for being {traits}, and they loved exploring every corner of their magical home.
+Once upon a time, in the heart of {setting}, there lived a young hero named {main_char} and their friends: {all_names}. They were a tight-knit group who loved exploring every corner of their magical home together.
 
-[SCENE: {main_char} standing at the edge of the woods in {setting}, the morning sun painting the sky in beautiful colors, ready for a new adventure]
+[SCENE: {main_char} and their friends {all_names} standing at the edge of the woods in {setting}, looking excited for a new adventure]
 
-One morning, {main_char} discovered something very unusual. Resting under a giant leaf was a tiny creature that looked lost. "Oh dear," said {main_char} softly. "Don't be afraid. I'm here to help you find your way."
+One morning, the group discovered something very unusual. Resting under a giant leaf was a tiny creature that looked lost. "Oh dear," said {main_char} softly. "Don't be afraid. We are all here to help you find your way."
 
 ## Challenge
 
-But soon {main_char} realized the task was harder than they thought. The path back to the creature's home was blocked by a fast-flowing river they had never seen before. None of the usual shortcuts seemed to work, and the sun was starting to set.
+But soon they realized the task was harder than they thought. The path back to the creature's home was blocked by a fast-flowing river they had never seen before. None of the usual shortcuts seemed to work, and the sun was starting to set.
 
-[SCENE: {main_char} and {friend} standing by a sparkling, rushing river in {setting}, looking determined as they try to figure out a safe way to cross]
+[SCENE: {all_names} standing by a sparkling, rushing river in {setting}, looking determined as they try to figure out a safe way to cross]
 
-"{main_char}, we should try to build a bridge!" suggested {friend}, who had just arrived to help. But the logs were too heavy and the current was too strong. {main_char} felt a little nervous. The forest was getting darker and they didn't want the little creature to be scared. But then {main_char} remembered the importance of {theme}, and they knew they couldn't give up.
+"{main_char}, we should try to build a bridge!" suggested one of the friends. But the logs were too heavy and the current was too strong. They felt a little nervous. The forest was getting darker and they didn't want the little creature to be scared. But then they remembered the importance of {theme}, and they knew they couldn't give up.
 
 ## Resolution
 
-Together, {main_char} and {friend} decided to ask the other animals for help. By working as a team and showing everyone how important {theme} is, they managed to gather enough branches and vines to weave a strong, safe bridge.
+Together, they decided to ask the other animals for help. By working as a team and showing everyone how important {theme} is, they managed to gather enough branches and vines to weave a strong, safe bridge.
 
-[SCENE: All the forest animals working together under the guidance of {main_char} and {friend}, successfully finishing a beautiful woven bridge over the river]
+[SCENE: All the forest animals working together with the children, successfully finishing a beautiful woven bridge over the river]
 
-They carefully helped the little creature across. As they reached the other side, the creature let out a happy whistle and scurried safely back to its family. {main_char} felt a warmth in their heart that were brighter than any sun. They had shown that even small acts of {theme} can solve the biggest problems.
+They carefully helped the little creature across. As they reached the other side, the creature let out a happy whistle and scurried safely back to its family. {main_char} felt a warmth in their heart that were brighter than any sun. They had shown that even small acts of {theme} can solve the biggest problems when friends work together.
 
 ## Moral
 
-As the stars began to twinkle over {setting}, {main_char} and {friend} walked back home, feeling proud of what they had accomplished. {main_char} learned that day that no challenge is too big when you have a heart full of {theme}.
+As the stars began to twinkle over {setting}, the group walked back home, feeling proud of what they had accomplished. They learned that day that no challenge is too big when you have a heart full of {theme}.
 
-[SCENE: {main_char} and {friend} sitting together under a clear starry sky in {setting}, smiling with happy and peaceful hearts]
+[SCENE: The group of friends sitting together under a clear starry sky in {setting}, smiling with happy and peaceful hearts]
 
 {moral}
 

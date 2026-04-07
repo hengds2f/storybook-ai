@@ -31,31 +31,35 @@ AGE_CONFIG = {
 def build_prompt(params: dict) -> str:
     """
     Assemble a structured story generation prompt from user parameters.
+    Strengthened to ensure all characters are included.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
 
     characters = params.get("characters", [])
     char_list = []
-    for c in characters:
+    # Use numbered list to ensure LLM tracks every character
+    for i, c in enumerate(characters, 1):
         name = c.get("name", "").strip()
         traits = ", ".join(c.get("traits", []))
         if name:
-            char_list.append(f"- {name}: {traits}" if traits else f"- {name}")
-    characters_text = "\n".join(char_list) if char_list else "- A brave young child"
+            char_list.append(f"{i}. {name}: {traits}" if traits else f"{i}. {name}")
+    
+    characters_text = "\n".join(char_list) if char_list else "1. A brave young child"
+    char_count = len(char_list) if char_list else 1
 
     setting = params.get("setting", "an enchanted forest")
     theme = params.get("theme", "friendship")
     moral = params.get("moral", "").strip() or "Kindness and friendship make the world a better place."
 
-    prompt = f"""You are a master children's story writer. Write a complete, original, age-appropriate children's story with the following specifications:
+    prompt = f"""You are a master children's story writer. Write a complete, original, age-appropriate children's story featuring ALL characters listed below.
 
 AGE GROUP: {cfg['label']}
 - Use {cfg['vocabulary']}
 - Story should be {cfg['length']}
 - Narrative complexity: {cfg['complexity']}
 
-CHARACTERS:
+CHARACTERS (Exactly {char_count} characters):
 {characters_text}
 
 SETTING: {setting}
@@ -79,6 +83,7 @@ STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these header
 [End with a warm, brief reflection on what was learned — the moral lesson. Keep it gentle and memorable. Include: [SCENE: description of the final peaceful moment]]
 
 Important rules:
+- You MUST include EVERY character listed in the CHARACTERS section. Every character must speak, act, or contribute to the plot.
 - Write in an engaging, warm narrative voice
 - Make the story feel complete and satisfying
 - Ensure the moral arises naturally from the story events
