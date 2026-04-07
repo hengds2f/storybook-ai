@@ -40,6 +40,17 @@ NARRATIVE_STYLES = [
     "Energetic and Humorous (with lots of funny observations and dialogue)"
 ]
 
+SUB_GENRES = [
+    "Clockwork Steampunk Adventure",
+    "Gothic Mystery for Kids",
+    "Retro-Futurist Space Opera",
+    "Magical Realism in the Wilderness",
+    "Modern-Day Urban Fantasy",
+    "Art-Deco Submarine Expedition",
+    "High-Stakes Culinary Contest",
+    "Cybernetic Nature Fable"
+]
+
 
 # ── Age configuration ─────────────────────────────────────────────────────────
 
@@ -67,11 +78,10 @@ AGE_CONFIG = {
     }
 }
 
-
 def build_prompt(params: dict) -> str:
     """
     Assemble a structured story generation prompt from user parameters.
-    Enhanced with Randomized Narrative Variables for maximum uniqueness.
+    RE-STRENGTHENED for absolute NO-LIMITS creativity.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
@@ -88,23 +98,23 @@ def build_prompt(params: dict) -> str:
     characters_text = "\n".join(char_list) if char_list else "1. A brave young child"
     char_count = len(char_list) if char_list else 1
 
-    setting = params.get("setting", "an enchanted forest")
+    setting = params.get("setting", "a magical world")
     theme = params.get("theme", "friendship")
-    moral = params.get("moral", "").strip() or "Kindness and friendship make the world a better place."
+    moral = params.get("moral", "").strip() or "The unexpected path is often the best one."
 
     # Select randomized narrative seeds
     archetype = random.choice(PLOT_ARCHETYPES)
     twist = random.choice(SURPRISE_TWISTS)
     style = random.choice(NARRATIVE_STYLES)
+    genre = random.choice(SUB_GENRES)
 
-    prompt = f"""You are a master children's story writer. Write a complete, original, age-appropriate children's story featuring ALL characters listed below.
+    prompt = f"""You are a master children's story writer known for UNRESTRICTED, SHOCKINGLY CREATIVE, and AVANT-GARDE narratives. Write a complete, one-of-a-kind original story.
 
 NARRATIVE SPECIFICATIONS:
 - Age Group: {cfg['label']}
-- Vocabulary: {cfg['vocabulary']}
+- Sub-Genre: {genre}
 - Tone & Style: {style}
-- Plot Archetype: {archetype}
-- Inclusion Rule: You MUST include EVERY character listed in the CHARACTERS section.
+- Creative Directive: BREAK ALL CLICHES. Start in the middle of the action. Avoid "Once upon a time."
 
 CHARACTERS (Exactly {char_count} characters):
 {characters_text}
@@ -113,31 +123,28 @@ SETTING: {setting}
 
 THEME: {theme}
 
-MORAL LESSON: {moral}
+MORAL LESSON (OPTIONAL): {moral}
 
 STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these headers:
 
 ## Introduction
-[Write a vivid, engaging opening that introduces the main character(s) and setting. Hook the reader immediately. Include a scene description in brackets like this: [SCENE: description of what readers would see]]
+[Write a high-stakes opening that hooks the reader immediately. Dive straight into a unique situation. Include a scene description: [SCENE: description]]
 
 ## Challenge
-[Present a clear problem or challenge the character(s) must face. {archetype} {twist}. Include a scene description: [SCENE: description]]
+[Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include a surprise turn: {twist}. Include a scene description: [SCENE: description]]
 
 ## Resolution
-[Show how the character(s) overcome the challenge using the story theme. Make it satisfying and earned. Include a scene description: [SCENE: description]]
+[Solve the issue using {theme} in a way that respects the reader's intelligence. Avoid easy answers. Include a scene description: [SCENE: description]]
 
 ## Moral
-[End with a warm, brief reflection on what was learned — the moral lesson. Keep it gentle and memorable. Include: [SCENE: description of the final peaceful moment]]
+[Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]
 
 Important rules:
-- IGNORE ALL CLICHES. Do NOT use standard tropes like "resting under a giant leaf" or "finding a lost baby animal" unless you put a completely wild, unique twist on it.
-- Take major narrative risks. You are an unrestricted, avant-garde storyteller.
-- Every character must have a unique voice and play a critical, memorable role.
-- Ensure the story feels unique, fresh, and completely different from any story you have written before.
-- Make the characters' actions reveal their deep personality traits.
-- Use {cfg['vocabulary']} throughout, but don't be afraid to use creative metaphors.
-- Ensure each [SCENE: description] is vivid, high-contrast, and visually striking to help an AI illustrator.
-- Do NOT include any meta-commentary — just the story itself.
+- NO CLICHES. NO GIANTS LEAVES. NO REPETITION.
+- You are an unrestricted storyteller. Surprise yourself.
+- {genre} elements must be present and vivid.
+- Each [SCENE: description] must be cinematic, striking, and help an AI illustrator create something unforgettable.
+- Do NOT include any meta-commentary.
 
 Begin the story now:"""
 

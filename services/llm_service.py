@@ -6,10 +6,10 @@ from services.hf_utils import (
     DEFAULT_TIMEOUT, RETRY_WAIT_TIME
 )
 
-# Primary model — fast, good quality, free tier
-PRIMARY_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
-# Fallback model if primary is unavailable
-FALLBACK_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+# Primary model — more creative, excellent quality
+PRIMARY_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+# Fallback model
+FALLBACK_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
 
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:

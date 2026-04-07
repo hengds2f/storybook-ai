@@ -48,7 +48,13 @@ def generate_story_pdf(story_data):
             pass
 
     # --- Content Pages ---
-    for section in story_data.get('sections', []):
+    content_obj = story_data.get('content', {})
+    if isinstance(content_obj, str):
+        import json
+        content_obj = json.loads(content_obj)
+        
+    sections = content_obj.get('sections', [])
+    for section in sections:
         pdf.add_page()
         
         # Section Title
