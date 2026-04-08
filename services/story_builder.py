@@ -14,21 +14,21 @@ AGE_CONFIG = {
     "3-5": {
         "label": "Ages 3–5",
         "vocabulary": "very simple words, short sentences, lots of repetition",
-        "length": "at least 100 words",
+        "length": "1000 words",
         "complexity": "simple and magical, with clear cause-and-effect",
-        "max_tokens": 400
+        "max_tokens": 2000
     },
     "6-8": {
         "label": "Ages 6–8",
         "vocabulary": "simple but varied vocabulary, moderate sentence length",
-        "length": "at least 500 words",
+        "length": "1000 words",
         "complexity": "engaging with a clear problem to solve",
-        "max_tokens": 1000
+        "max_tokens": 2000
     },
     "9-12": {
         "label": "Ages 9–12",
         "vocabulary": "richer vocabulary with descriptive language",
-        "length": "at least 1000 words",
+        "length": "1000 words",
         "complexity": "more nuanced with character development and descriptive scenes",
         "max_tokens": 2000
     }
@@ -55,10 +55,10 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
 
-    # Calculate sectional length guidance
-    total_words = 1000 if age_group == "9-12" else (500 if age_group == "6-8" else 100)
-    section_min = total_words // 4
-    section_guidance = f"Aim for at least {section_min} words per section to meet the global target."
+    # All age groups now target 1000 words
+    total_words = 1000
+    section_min = 250
+    section_guidance = f"Aim for {section_min} words per section to meet the 1000-word target."
 
     characters = params.get("characters", [])
     char_list = []
@@ -91,7 +91,7 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
 
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
-    - MINIMUM TOTAL LENGTH: {cfg['length']} (MANDATORY - Short responses will be rejected)
+    - TARGET TOTAL LENGTH: 1000 words (MANDATORY)
     - Sectional Guidance: {section_guidance}
     - Sub-Genre: {s['genre']}
     - Atmosphere: {s['atm']}
@@ -111,13 +111,13 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these headers:
     
     ## Introduction
-    [Write a high-stakes, EXTREMELY DETAILED opening. Dive straight into a unique situation. Aim for {section_min} words. Include a scene description: [SCENE: description]]
+    [Write a high-stakes, EXTREMELY DETAILED opening. Dive straight into a unique situation. Target {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Challenge
-    [Escalate the situation in a completely unexpected way. Use the plot archetype: {s['archetype']}. Include the Plot Spark: {s['spark']}. Include the surprise turn: {s['twist']}. Aim for {section_min} words. Include a scene description: [SCENE: description]]
+    [Escalate the situation in a completely unexpected way. Use the plot archetype: {s['archetype']}. Include the Plot Spark: {s['spark']}. Include the surprise turn: {s['twist']}. Target {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Resolution
-    [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Aim for {section_min} words. Include a scene description: [SCENE: description]]
+    [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Target {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Moral
     [Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]
@@ -146,8 +146,9 @@ def build_section_prompt(params: dict, section_name: str, previous_content: str,
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
     
-    total_words = 1000 if age_group == "9-12" else 500
-    section_min = total_words // 4
+    # All age groups now target 1000 words (250 per section)
+    total_words = 1000
+    section_target = 250
     
     characters = params.get("characters", [])
     characters_text = ", ".join([c.get("name", "Hero") for c in characters])
@@ -158,13 +159,13 @@ def build_section_prompt(params: dict, section_name: str, previous_content: str,
     
     # Section descriptions for the prompt
     descriptions = {
-        "Introduction": f"Write the opening scene of the story. You MUST write at least {section_min} words. Focus on vivid environmental descriptions and character feelings. End with the Plot Spark: {s['spark']}.",
-        "Challenge": f"Continue the story. You MUST write at least {section_min} words. Escalate the situation using the Plot Archetype: {s['archetype']}. Deepen the {s['atm']} atmosphere and include a Surprise Turn: {s['twist']}.",
-        "Resolution": f"Deliver the climax and conclusion. You MUST write at least {section_min} words. Solve the conflict in an UNPREDICTABLE and SHOCKING way. ABSOLUTELY NO PUZZLES. The theme was {theme}.",
+        "Introduction": f"Write the opening scene of the story. You MUST write {section_target} words. Focus on vivid environmental descriptions and character feelings. End with the Plot Spark: {s['spark']}.",
+        "Challenge": f"Continue the story. You MUST write {section_target} words. Escalate the situation using the Plot Archetype: {s['archetype']}. Deepen the {s['atm']} atmosphere and include a Surprise Turn: {s['twist']}.",
+        "Resolution": f"Deliver the climax and conclusion. You MUST write {section_target} words. Solve the conflict in an UNPREDICTABLE and SHOCKING way. ABSOLUTELY NO PUZZLES. The theme was {theme}.",
         "Moral": f"Provide the final reflection and cinematic outro. Describe a final striking visual moment."
     }
 
-    prompt = f"""You are a master storyteller. We are writing a long-form story for {cfg['label']} ({total_words}+ words).
+    prompt = f"""You are a master storyteller. We are writing a long-form story for {cfg['label']} ({total_words} words).
     
     CONTEXT:
     - Sub-Genre: {s['genre']}
@@ -175,7 +176,7 @@ def build_section_prompt(params: dict, section_name: str, previous_content: str,
     TASK: Write ONLY the '## {section_name}' section of the story.
     
     RULES:
-    - Write AT LEAST {section_min} words (mandatory).
+    - Write EXACTLY {section_target} words (mandatory).
     - NEVER summarize. Use immersive, sensory details.
     - Maintain the {s['atm']} atmosphere.
     - Use the {s['style']} narrative style.

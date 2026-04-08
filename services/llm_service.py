@@ -55,9 +55,8 @@ def generate_story_iterative(params: dict, age_cfg: dict) -> str:
     full_story = ""
     
     for section_name in sections:
-        # Increase max_tokens per section call for 9-12 age group
-        # (approx 400-500 tokens per section)
-        sec_max_tokens = 600
+        # Increase max_tokens per section call to support ~250-300 words
+        sec_max_tokens = 700 
         
         prompt = build_section_prompt(params, section_name, full_story, seeds)
         print(f"[LLM] Generating {section_name} iteratively...")
@@ -82,7 +81,7 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and having a SHOCKING SURPRISE EFFECT. You ALWAYS write long, detailed, and descriptive stories that meet the requested word count. You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
+                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and having a SHOCKING SURPRISE EFFECT. You ALWAYS write exactly 1000 words for the full story (250 words per section). You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
             },
             {
                 "role": "user",

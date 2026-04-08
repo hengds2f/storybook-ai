@@ -45,12 +45,8 @@ def generate():
     # Get age config for token budget
     age_cfg = get_age_config(params["age_group"])
 
-    # Build and send prompt
-    if params["age_group"] == "9-12":
-        raw_text = generate_story_iterative(params, age_cfg)
-    else:
-        prompt = build_prompt(params)
-        raw_text = generate_story(prompt, params, max_tokens=age_cfg["max_tokens"])
+    # Build and send prompt (Always iterative for all age groups to ensure 1000 words)
+    raw_text = generate_story_iterative(params, age_cfg)
 
     # Parse the structured output
     content = parse_story(raw_text, params)
