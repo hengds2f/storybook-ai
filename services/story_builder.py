@@ -118,6 +118,15 @@ def build_act_prompt(params: dict, act_number: int, act1_content: str = None, se
     return ""
 
 
+def get_random_taboos() -> str:
+    """Select a random subset of taboo items to force narrative variety."""
+    if not TABOO_ITEMS:
+        return ""
+    count = random.randint(3, 5)
+    selected = random.sample(TABOO_ITEMS, min(count, len(TABOO_ITEMS)))
+    return ", ".join(selected)
+
+
 def build_character_descriptions(characters: list) -> tuple:
     """
     Build two representations of the character list:
@@ -204,6 +213,7 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     - Write at least 150 words of rich, descriptive prose for this specific act.
     - EVERY character listed above MUST appear in this segment — give each character dialogue, action, or internal thought.
     - Focus exclusively on adding new dialogue, internal monologue, and environmental details.
+    - NARRATIVE TABOOS (Do NOT use or mention these tropes/items): {get_random_taboos()}
 
     SPECIFIC INSTRUCTIONS FOR {title}:
     """
@@ -223,7 +233,8 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     elif act_number == 7:
         prompt += f"The climax resolves. How do {names_str} each react to the resolution? Focus on the {theme} theme and show each character's personal growth."
     elif act_number == 8:
-        prompt += f"A peaceful closing scene. Reflect on what {names_str} each learned. End with a final striking visual moment featuring all the characters together."
+        prompt += f"A peaceful closing scene in {setting}. Reflect on what {names_str} each learned. \n\n"
+        prompt += "CRITICAL FINAL TASK: You MUST conclude this story with a 4-8 line RHYMING POEM that conveys the overall moral of the story for {names_str}. The poem should be beautiful and feel like a classic children's verse."
 
     if previous_content:
         # Pass the last segment for continuity

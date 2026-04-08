@@ -126,11 +126,11 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your stories are FAMOUS for being UNPREDICTABLE and extremely DETAILED. You ALWAYS write EXACTLY 1000 words in total. You NEVER use the '#' symbol. You NEVER summarize. Use vivid, sensory descriptions and directly address the reader occasionally."
     )
     
-    # Increase temperature and top_p for variety as requested
+    # Maximize creativity parameters for variety
     generation_config = {
-        "temperature": 1.0,
-        "top_p": 0.95,
-        "top_k": 40,
+        "temperature": 1.0,  # Max creative temperature
+        "top_p": 0.99,       # High probability tail for variety
+        "top_k": 50,         # Broaden word selection pool
         "max_output_tokens": max_tokens,
     }
     
