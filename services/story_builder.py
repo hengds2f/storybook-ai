@@ -210,7 +210,6 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     - Do NOT use the '#' symbol anywhere in your response.
     - Write exactly '[[{title}]]' as your first line.
     - Write NEW CONTENT ONLY. Do NOT repeat, summarize, or rephrase any previous acts.
-    - Write at least 150 words of rich, descriptive prose for this specific act.
     - EVERY character listed above MUST appear in this segment — give each character dialogue, action, or internal thought.
     - Focus exclusively on adding new dialogue, internal monologue, and environmental details.
     - NARRATIVE TABOOS (Do NOT use or mention these tropes/items): {get_random_taboos()}
@@ -240,7 +239,8 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
         # Pass the last segment for continuity
         prompt += f"\n\n--- PREVIOUS ACT (FOR CONTEXT ONLY - DO NOT REPEAT THIS IN YOUR RESPONSE) ---\n{previous_content[-1000:]}"
 
-    prompt += f"\n\nBegin writing [[{title}]] now (Target: 150+ new words):"
+    target_len = "150+ new words" if act_number < 8 else "a short scene followed by a beautiful poem"
+    prompt += f"\n\nBegin writing [[{title}]] now (Target: {target_len}):"
     return prompt
 
 

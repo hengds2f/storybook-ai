@@ -123,7 +123,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     
     model = genai.GenerativeModel(
         model_name=model_name,
-        system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your stories are FAMOUS for being UNPREDICTABLE and extremely DETAILED. You ALWAYS write EXACTLY 1000 words in total. You NEVER use the '#' symbol. You NEVER summarize. Use vivid, sensory descriptions and directly address the reader occasionally."
+        system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your stories are segmented into 8 acts. The FINAL act (Act 8) must ALWAYS conclude with a beautiful, 4-8 line rhyming poem that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. You NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
     )
     
     # Maximize creativity parameters for variety

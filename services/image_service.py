@@ -60,8 +60,8 @@ def generate_image_with_audit(description: str, story_params: dict) -> tuple[str
         if response.data and response.data[0].url:
             image_url = response.data[0].url
             
-            # Download the image
-            img_response = requests.get(image_url)
+            # Download the image with timeout
+            img_response = requests.get(image_url, timeout=30)
             if img_response.status_code == 200:
                 image = Image.open(io.BytesIO(img_response.content))
                 
