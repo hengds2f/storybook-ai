@@ -1,6 +1,4 @@
 import os
-import requests
-import json
 # Gemini uses its own SDK and environment variables.
 
 # AI Engine Configuration
