@@ -218,20 +218,22 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     SPECIFIC INSTRUCTIONS FOR {title}:
     """
 
+    scene_instruction = "Start your response with [SCENE: a vivid 10-15 word description of the key visual scene in this segment, suitable for AI illustration]. Then write the narrative." if act_number < 8 else ""
+
     if act_number == 1:
-        prompt += f"Begin the story in {setting}. Introduce ALL of the characters: {names_str}. Describe the environment and each character's first moment vividly."
+        prompt += f"{scene_instruction} Begin the story in {setting}. Introduce ALL of the characters: {names_str}. Describe the environment and each character's first moment vividly."
     elif act_number == 2:
-        prompt += f"Deepen our understanding of EACH character: {names_str}. Give every character unique internal thoughts, personality, and sensory experience of {setting}."
+        prompt += f"{scene_instruction} Deepen our understanding of EACH character: {names_str}. Give every character unique internal thoughts, personality, and sensory experience of {setting}."
     elif act_number == 3:
-        prompt += f"Introduce the Plot Spark: {s['spark']}. Something changes in {setting}. Show how EACH of the characters — {names_str} — reacts differently based on their personality."
+        prompt += f"{scene_instruction} Introduce the Plot Spark: {s['spark']}. Something changes in {setting}. Show how EACH of the characters — {names_str} — reacts differently based on their personality."
     elif act_number == 4:
-        prompt += f"The situation escalates. Describe the trials facing {names_str} together. Each character must contribute uniquely. Focus on {s['atm']} atmosphere."
+        prompt += f"{scene_instruction} The situation escalates. Describe the trials facing {names_str} together. Each character must contribute uniquely. Focus on {s['atm']} atmosphere."
     elif act_number == 5:
-        prompt += f"Introduce the Plot Archetype: {s['archetype']}. A huge complication arises that affects {names_str} differently. Include the Surprise Turn: {s['twist']}."
+        prompt += f"{scene_instruction} Introduce the Plot Archetype: {s['archetype']}. A huge complication arises that affects {names_str} differently. Include the Surprise Turn: {s['twist']}."
     elif act_number == 6:
-        prompt += f"The final confrontation. ALL characters — {names_str} — must play an active role. Describe each character's action and emotion in slow-motion detail."
+        prompt += f"{scene_instruction} The final confrontation. ALL characters — {names_str} — must play an active role. Describe each character's action and emotion in slow-motion detail."
     elif act_number == 7:
-        prompt += f"The climax resolves. How do {names_str} each react to the resolution? Focus on the {theme} theme and show each character's personal growth."
+        prompt += f"{scene_instruction} The climax resolves. How do {names_str} each react to the resolution? Focus on the {theme} theme and show each character's personal growth."
     elif act_number == 8:
         prompt += f"A peaceful closing scene in {setting}. \n"
         prompt += "MANDATORY FINAL TASK: You MUST write a 6-8 line RHYMING POEM that conveys the overall moral of the story. \n"
