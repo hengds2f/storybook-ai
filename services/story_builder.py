@@ -14,23 +14,23 @@ AGE_CONFIG = {
     "3-5": {
         "label": "Ages 3–5",
         "vocabulary": "very simple words, short sentences, lots of repetition",
-        "length": "exactly 100 words",
+        "length": "at least 100 words",
         "complexity": "simple and magical, with clear cause-and-effect",
-        "max_tokens": 300
+        "max_tokens": 400
     },
     "6-8": {
         "label": "Ages 6–8",
         "vocabulary": "simple but varied vocabulary, moderate sentence length",
-        "length": "exactly 500 words",
+        "length": "at least 500 words",
         "complexity": "engaging with a clear problem to solve",
-        "max_tokens": 800
+        "max_tokens": 1000
     },
     "9-12": {
         "label": "Ages 9–12",
         "vocabulary": "richer vocabulary with descriptive language",
-        "length": "exactly 1000 words",
+        "length": "at least 1000 words",
         "complexity": "more nuanced with character development and descriptive scenes",
-        "max_tokens": 1500
+        "max_tokens": 2000
     }
 }
 
@@ -42,6 +42,11 @@ def build_prompt(params: dict) -> str:
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
+
+    # Calculate sectional length guidance
+    total_words = 1000 if age_group == "9-12" else (500 if age_group == "6-8" else 100)
+    section_min = total_words // 4
+    section_guidance = f"Aim for at least {section_min} words per section to meet the global target."
 
     characters = params.get("characters", [])
     char_list = []
@@ -73,7 +78,8 @@ def build_prompt(params: dict) -> str:
 
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
-    - Target Length: {cfg['length']} (MANDATORY)
+    - MINIMUM TOTAL LENGTH: {cfg['length']} (MANDATORY)
+    - Sectional Guidance: {section_guidance}
     - Sub-Genre: {genre}
     - Atmosphere: {atm}
     - Tone & Style: {style}
