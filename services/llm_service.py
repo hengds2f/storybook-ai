@@ -65,14 +65,14 @@ def generate_story_8act(params: dict) -> str:
     full_story = ""
     
     act_titles = [
-        "ACT 1: Setting the Scene",
-        "ACT 2: Character Depth",
-        "ACT 3: The Inciting Incident",
-        "ACT 4: Rising Action",
-        "ACT 5: The Complication",
-        "ACT 6: The Climax",
-        "ACT 7: The Resolution",
-        "ACT 8: Aftermath & Final Moral"
+        "ACT_1: Setting the Scene",
+        "ACT_2: Character Depth",
+        "ACT_3: The Inciting Incident",
+        "ACT_4: Rising Action",
+        "ACT_5: The Complication",
+        "ACT_6: The Climax",
+        "ACT_7: The Resolution",
+        "ACT_8: Aftermath & Final Moral"
     ]
 
     for i in range(1, 9):
@@ -85,8 +85,8 @@ def generate_story_8act(params: dict) -> str:
         # Generate the act (Target ~150-200 words)
         act_text = generate_story(prompt, params, max_tokens=600)
         
-        # Append with header for parser
-        full_story += f"\n\n## {act_titles[i-1]}\n{act_text}\n"
+        # Append with header for parser (No '#' symbols as requested)
+        full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
         
         print(f"  -> {act_titles[i-1]} completed. Current total: {len(full_story.split())} words.")
 

@@ -129,7 +129,7 @@ def build_act_prompt(params: dict, act_number: int, act1_content: str = None, se
 def build_8act_prompts(params: dict, act_number: int, previous_content: str = None, seeds: dict = None) -> str:
     """
     Generate highly granular prompts for the 8-Act Narrative Engine.
-    This guarantees 1200+ words by breaking the story into 8 segments (150 words each).
+    Uses non-markdown markers (no #) and enforces strict NEW content rule.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
@@ -142,14 +142,14 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     s = seeds
     
     act_titles = [
-        "ACT 1: Setting the Scene",
-        "ACT 2: Character Depth",
-        "ACT 3: The Inciting Incident",
-        "ACT 4: Rising Action",
-        "ACT 5: The Complication",
-        "ACT 6: The Climax",
-        "ACT 7: The Resolution",
-        "ACT 8: Aftermath & Final Moral"
+        "ACT_1: Setting the Scene",
+        "ACT_2: Character Depth",
+        "ACT_3: The Inciting Incident",
+        "ACT_4: Rising Action",
+        "ACT_5: The Complication",
+        "ACT_6: The Climax",
+        "ACT_7: The Resolution",
+        "ACT_8: Aftermath & Final Moral"
     ]
     
     title = act_titles[act_number - 1]
@@ -162,12 +162,14 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     - Characters: {characters_text}
     - Setting: {setting}
     
-    TASK: Write ONLY '{title}'.
+    TASK: Write ONLY the segment for '{title}'.
     
-    RULES:
-    - You MUST write at least 150 words for this act.
-    - NEVER summarize. Focus on sensory details (sounds, smells, textures).
-    - Maintain extreme continuity with previous acts.
+    CRITICAL RULES (MANDATORY):
+    - Do NOT use the '#' symbol anywhere in your response.
+    - Write exactly '[[{title}]]' as your first line.
+    - Write NEW CONTENT ONLY. Do NOT repeat, summarize, or rephrase any previous acts.
+    - Write at least 150 words of rich, descriptive prose for this specific act.
+    - Focus exclusively on adding new dialogue, internal monologue, and environmental details.
     
     SPECIFIC INSTRUCTIONS FOR {title}:
     """
@@ -175,25 +177,25 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     if act_number == 1:
         prompt += f"Begin the story in {setting}. Deeply describe the environment and the first moment we see {characters_text}."
     elif act_number == 2:
-        prompt += f"Deepen our understanding of {characters_text}. Describe their internal thoughts, their small habits, and how they feel today in {setting}."
+        prompt += f"Deepen our understanding of {characters_text}. Describe their internal thoughts and sensory experience of {setting}."
     elif act_number == 3:
         prompt += f"Introduce the Plot Spark: {s['spark']}. Something changes in {setting}. How does {characters_text} react?"
     elif act_number == 4:
-        prompt += f"The situation escalates. Describe the first trials facing {characters_text}. Use the atmosphere of {s['atm']} to create tension."
+        prompt += f"The situation escalates. Describe the first trials facing {characters_text}. Focus on {s['atm']} atmosphere."
     elif act_number == 5:
-        prompt += f"Introduce the Plot Archetype: {s['archetype']}. A major obstacle or twist makes success seem impossible. Include the Surprise Turn: {s['twist']}."
+        prompt += f"Introduce the Plot Archetype: {s['archetype']}. A huge complication arises. Include the Surprise Turn: {s['twist']}."
     elif act_number == 6:
         prompt += f"The final confrontation. The stakes are at their highest. Describe the action and emotion in slow-motion detail."
     elif act_number == 7:
-        prompt += f"The climax resolves. How does the world of {setting} change? Focus on the {theme} theme."
+        prompt += f"The climax resolves. How does the world of {setting} change? Focus on {theme} theme."
     elif act_number == 8:
-        prompt += f"A peaceful closing scene. What lesson did {characters_text} learn? End with a final, striking cinematic moment."
+        prompt += f"A peaceful closing scene. What lesson did {characters_text} learn? End with a final striking visual moment."
         
     if previous_content:
         # Pass the last segment for continuity
-        prompt += f"\n\nHERE IS WHAT HAPPENED RECENTLY (use this as your starting point):\n...{previous_content[-1000:]}"
+        prompt += f"\n\n--- PREVIOUS ACT (FOR CONTEXT ONLY - DO NOT REPEAT THIS IN YOUR RESPONSE) ---\n{previous_content[-1000:]}"
         
-    prompt += f"\n\nBegin writing {title} now (Target: 150+ detailed words):"
+    prompt += f"\n\nBegin writing [[{title}]] now (Target: 150+ new words):"
     return prompt
 
 
@@ -201,8 +203,8 @@ def parse_story(raw_text: str, params: dict) -> dict:
     """
     Parse the segmented 8-Act engine output into the 4 UI-facing sections.
     """
-    # Split by Acts
-    acts = re.split(r'## ACT \d:.*?\n', raw_text, flags=re.IGNORECASE)
+    # Split by Acts using the new bracketed marker
+    acts = re.split(r'\[\[ACT_\d:.*?\]\]', raw_text, flags=re.IGNORECASE)
     # Remove empty first element
     acts = [a.strip() for a in acts if a.strip()]
     
@@ -213,9 +215,9 @@ def parse_story(raw_text: str, params: dict) -> dict:
     # 4. Moral (Act 8)
     
     sections_data = {
-        "introduction": "\n\n".join(acts[:2]),
-        "challenge": "\n\n".join(acts[2:5]),
-        "resolution": "\n\n".join(acts[5:7]),
+        "introduction": "\n\n".join(acts[:2]) if len(acts) >= 2 else (acts[0] if acts else ""),
+        "challenge": "\n\n".join(acts[2:5]) if len(acts) >= 5 else ("\n\n".join(acts[2:]) if len(acts) > 2 else ""),
+        "resolution": "\n\n".join(acts[5:7]) if len(acts) >= 7 else ("\n\n".join(acts[5:]) if len(acts) > 5 else ""),
         "moral": acts[7] if len(acts) > 7 else ""
     }
 
@@ -232,6 +234,8 @@ def parse_story(raw_text: str, params: dict) -> dict:
         
         # Clean content
         clean_content = re.sub(r'\[SCENE:.*?\]', '', content, flags=re.DOTALL).strip()
+        # Ensure no residual markers exist
+        clean_content = re.sub(r'\[\[ACT_\d:.*?\]\]', '', clean_content, flags=re.IGNORECASE).strip()
         
         processed_sections.append({
             "title": name,
