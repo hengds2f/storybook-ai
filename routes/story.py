@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, request, jsonify, session, render_template
-from services.llm_service import generate_story, generate_story_8act
+from services.llm_service import generate_story, generate_story_8act, count_words
 from services.story_builder import build_prompt, parse_story, get_age_config
 from services.storage import (
     save_story, get_stories_for_profile, get_story_by_id,
@@ -50,6 +50,20 @@ def generate():
     # Parse the structured output
     content = parse_story(raw_text, params)
     title = content["title"]
+
+    # Check word count - ensure story is more than 500 words
+    total_words = sum(count_words(section["content"]) for section in content.get("sections", []))
+    retries = 0
+    max_retries = 3
+    while total_words < 500 and retries < max_retries:
+        print(f"[STORY] Story too short ({total_words} words), regenerating... (attempt {retries+1}/{max_retries})")
+        raw_text = generate_story_8act(params)
+        content = parse_story(raw_text, params)
+        total_words = sum(count_words(section["content"]) for section in content.get("sections", []))
+        retries += 1
+
+    if total_words < 500:
+        print(f"[STORY] Failed to generate story >500 words after {max_retries} attempts. Proceeding with {total_words} words.")
 
     # Generate illustrations for each section
     for section in content.get("sections", []):

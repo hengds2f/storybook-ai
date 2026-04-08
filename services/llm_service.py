@@ -78,7 +78,7 @@ def generate_story_8act(params: dict) -> str:
 
         # Upgrade Act 8 to Pro for strict instruction following (poetry)
         model_to_use = "gemini-1.5-pro" if i == 8 else GEMINI_MODEL
-        act_text = _call_gemini_api(model_to_use, prompt, max_tokens=600)
+        act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
         
         if not act_text:
             print(f"  -> {act_titles[i-1]} failed. Returning overall fallback.")
