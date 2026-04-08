@@ -121,8 +121,15 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
 
 def build_act_prompt(params: dict, act_number: int, act1_content: str = None, seeds: dict = None) -> str:
     """
-    Assemble a focused prompt for a specific Act (Introduction/Challenge or Resolution/Moral).
-    Enforces extreme length (~500 words per Act) to reach 1000 total.
+    DEPRECATED: Use build_8act_prompts instead for segmented generation.
+    """
+    return ""
+
+
+def build_8act_prompts(params: dict, act_number: int, previous_content: str = None, seeds: dict = None) -> str:
+    """
+    Generate highly granular prompts for the 8-Act Narrative Engine.
+    This guarantees 1200+ words by breaking the story into 8 segments (150 words each).
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
@@ -134,87 +141,105 @@ def build_act_prompt(params: dict, act_number: int, act1_content: str = None, se
     
     s = seeds
     
+    act_titles = [
+        "ACT 1: Setting the Scene",
+        "ACT 2: Character Depth",
+        "ACT 3: The Inciting Incident",
+        "ACT 4: Rising Action",
+        "ACT 5: The Complication",
+        "ACT 6: The Climax",
+        "ACT 7: The Resolution",
+        "ACT 8: Aftermath & Final Moral"
+    ]
+    
+    title = act_titles[act_number - 1]
+    
+    prompt = f"""You are a master children's storyteller. We are writing a detailed, long-form story (1200+ words).
+    
+    CONTEXT:
+    - Sub-Genre: {s['genre']}
+    - Atmosphere: {s['atm']}
+    - Characters: {characters_text}
+    - Setting: {setting}
+    
+    TASK: Write ONLY '{title}'.
+    
+    RULES:
+    - You MUST write at least 150 words for this act.
+    - NEVER summarize. Focus on sensory details (sounds, smells, textures).
+    - Maintain extreme continuity with previous acts.
+    
+    SPECIFIC INSTRUCTIONS FOR {title}:
+    """
+    
     if act_number == 1:
-        prompt = f"""You are a master storyteller. We are writing PART ONE (the first 500 words) of a 1000-word story.
+        prompt += f"Begin the story in {setting}. Deeply describe the environment and the first moment we see {characters_text}."
+    elif act_number == 2:
+        prompt += f"Deepen our understanding of {characters_text}. Describe their internal thoughts, their small habits, and how they feel today in {setting}."
+    elif act_number == 3:
+        prompt += f"Introduce the Plot Spark: {s['spark']}. Something changes in {setting}. How does {characters_text} react?"
+    elif act_number == 4:
+        prompt += f"The situation escalates. Describe the first trials facing {characters_text}. Use the atmosphere of {s['atm']} to create tension."
+    elif act_number == 5:
+        prompt += f"Introduce the Plot Archetype: {s['archetype']}. A major obstacle or twist makes success seem impossible. Include the Surprise Turn: {s['twist']}."
+    elif act_number == 6:
+        prompt += f"The final confrontation. The stakes are at their highest. Describe the action and emotion in slow-motion detail."
+    elif act_number == 7:
+        prompt += f"The climax resolves. How does the world of {setting} change? Focus on the {theme} theme."
+    elif act_number == 8:
+        prompt += f"A peaceful closing scene. What lesson did {characters_text} learn? End with a final, striking cinematic moment."
         
-        CONTEXT:
-        - Sub-Genre: {s['genre']}
-        - Atmosphere: {s['atm']}
-        - Narrative Style: {s['style']}
-        - Characters: {characters_text}
-        - Setting: {setting}
+    if previous_content:
+        # Pass the last segment for continuity
+        prompt += f"\n\nHERE IS WHAT HAPPENED RECENTLY (use this as your starting point):\n...{previous_content[-1000:]}"
         
-        TASK: Write ONLY the '## Introduction' and '## Challenge' sections.
-        
-        MANDATORY RULES:
-        - You MUST write at least 500 words total for this part.
-        - Dive deep into every sensory detail. Describe the air, the colors, the sounds, and the character's internal thoughts at great length.
-        - Do NOT summarize any action. Expand every moment.
-        - Include the Plot Archetype: {s['archetype']} and the Plot Spark: {s['spark']}.
-        - Format with '## Introduction' and '## Challenge' headers.
-        
-        Begin PART ONE of the 1000-word story now:"""
-    else:
-        prompt = f"""You are a master storyteller. We are writing PART TWO (the final 500 words) of a 1000-word story.
-        
-        CONTEXT:
-        - Part One was already written (see below).
-        - Characters: {characters_text}
-        - Theme: {theme}
-        
-        TASK: Write ONLY the '## Resolution' and '## Moral' sections.
-        
-        MANDATORY RULES:
-        - You MUST write at least 500 words total for this part.
-        - Use extreme detail to expand the climax. Describe every breath and every shifting shadow.
-        - Ensure an UNPREDICTABLE and SHOCKING Resolution (No puzzles!).
-        - Include a Surprise Turn: {s['twist']}.
-        - Format with '## Resolution' and '## Moral' headers.
-        
-        HERE IS PART ONE FOR CONTINUITY:
-        {act1_content}
-        
-        Begin PART TWO (the final 500 words) now:"""
-        
+    prompt += f"\n\nBegin writing {title} now (Target: 150+ detailed words):"
     return prompt
 
 
 def parse_story(raw_text: str, params: dict) -> dict:
     """
-    Parse the LLM output into structured story sections.
-    Returns a dict with title, sections (list of dicts), and metadata.
+    Parse the segmented 8-Act engine output into the 4 UI-facing sections.
     """
-    # Clean up the text
-    text = raw_text.strip()
+    # Split by Acts
+    acts = re.split(r'## ACT \d:.*?\n', raw_text, flags=re.IGNORECASE)
+    # Remove empty first element
+    acts = [a.strip() for a in acts if a.strip()]
+    
+    # Re-group 8 acts into 4 sections for UI consistency:
+    # 1. Introduction (Acts 1 & 2)
+    # 2. Challenge (Acts 3, 4, & 5)
+    # 3. Resolution (Acts 6 & 7)
+    # 4. Moral (Act 8)
+    
+    sections_data = {
+        "introduction": "\n\n".join(acts[:2]),
+        "challenge": "\n\n".join(acts[2:5]),
+        "resolution": "\n\n".join(acts[5:7]),
+        "moral": acts[7] if len(acts) > 7 else ""
+    }
 
-    # Extract sections using headers
-    sections_data = {}
+    processed_sections = []
     section_names = ["Introduction", "Challenge", "Resolution", "Moral"]
-
-    for i, section_name in enumerate(section_names):
-        # Find this section
-        pattern = rf"##\s*{section_name}\s*\n(.*?)(?=##\s*(?:{'|'.join(section_names[i+1:])})|$)"
-        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-        if match:
-            content = match.group(1).strip()
-        else:
-            # Fallback: try to split by paragraphs
-            content = _extract_fallback_section(text, i, len(section_names))
-
-        # Extract scene description
+    
+    for name in section_names:
+        key = name.lower()
+        content = sections_data.get(key, "").strip()
+        
+        # Extract or generate scene description
         scene_match = re.search(r'\[SCENE:\s*(.*?)\]', content, re.DOTALL)
-        scene_description = scene_match.group(1).strip() if scene_match else _generate_default_scene(section_name, params)
-
-        # Remove scene tags from main content
+        scene_description = scene_match.group(1).strip() if scene_match else _generate_default_scene(name, params)
+        
+        # Clean content
         clean_content = re.sub(r'\[SCENE:.*?\]', '', content, flags=re.DOTALL).strip()
-
-        sections_data[section_name.lower()] = {
-            "title": section_name,
+        
+        processed_sections.append({
+            "title": name,
             "content": clean_content,
             "scene_description": scene_description
-        }
+        })
 
-    # Generate a story title from the first character and theme
+    # Generate a story title
     characters = params.get("characters", [])
     char_name = characters[0].get("name", "Hero") if characters else "Young Hero"
     theme = params.get("theme", "adventure")
@@ -222,12 +247,7 @@ def parse_story(raw_text: str, params: dict) -> dict:
 
     return {
         "title": title,
-        "sections": [
-            sections_data.get("introduction", {"title": "Introduction", "content": "", "scene_description": ""}),
-            sections_data.get("challenge", {"title": "Challenge", "content": "", "scene_description": ""}),
-            sections_data.get("resolution", {"title": "Resolution", "content": "", "scene_description": ""}),
-            sections_data.get("moral", {"title": "Moral", "content": "", "scene_description": ""})
-        ],
+        "sections": processed_sections,
         "age_group": params.get("age_group", "6-8"),
         "theme": params.get("theme", ""),
         "setting": params.get("setting", ""),

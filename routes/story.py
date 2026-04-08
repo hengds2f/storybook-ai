@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, request, jsonify, session, render_template
-from services.llm_service import generate_story, generate_story_sequentially
+from services.llm_service import generate_story, generate_story_8act
 from services.story_builder import build_prompt, parse_story, get_age_config
 from services.storage import (
     save_story, get_stories_for_profile, get_story_by_id,
@@ -45,8 +45,8 @@ def generate():
     # Get age config for token budget
     age_cfg = get_age_config(params["age_group"])
 
-    # Build and send prompt (Sequential Act-by-Act generation for 1000 words)
-    raw_text = generate_story_sequentially(params)
+    # Build and send prompt (8-Act Narrative Engine for 1000+ words)
+    raw_text = generate_story_8act(params)
 
     # Parse the structured output
     content = parse_story(raw_text, params)

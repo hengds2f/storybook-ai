@@ -53,47 +53,44 @@ def count_words(text: str) -> int:
     return len(clean_text.split())
 
 
-def generate_story_sequentially(params: dict) -> str:
+def generate_story_8act(params: dict) -> str:
     """
-    Generate a 1000-word story in two acts with length enforcement.
-    Part 1: Intro + Challenge
-    Part 2: Resolution + Moral
-    If the total is < 1000, triggers expansion calls for short acts.
+    The 8-Act Narrative Engine.
+    Performs 8 sequential API calls (~150 words each) to guarantee 1200+ words.
+    Bypasses the Hugging Face Inference API response token limits.
     """
-    from services.story_builder import build_act_prompt, set_seeds
+    from services.story_builder import build_8act_prompts, set_seeds
     
     seeds = set_seeds(params)
+    full_story = ""
     
-    # PART 1: Intro and Challenge (~500 words)
-    prompt1 = build_act_prompt(params, act_number=1, seeds=seeds)
-    print(f"[LLM] Generating Act 1 (Intro/Challenge)...")
-    act1_content = generate_story(prompt1, params, max_tokens=1500)
-    
-    # PART 2: Resolution and Moral (~500 words)
-    prompt2 = build_act_prompt(params, act_number=2, act1_content=act1_content, seeds=seeds)
-    print(f"[LLM] Generating Act 2 (Resolution/Moral)...")
-    act2_content = generate_story(prompt2, params, max_tokens=1500)
-    
-    # Check total word count and expand if necessary
-    max_retries = 3
-    for attempt in range(max_retries):
-        total_words = count_words(act1_content) + count_words(act2_content)
-        print(f"[LENGTH CHECK] Total Word Count: {total_words} / 1000 (Attempt {attempt+1})")
+    act_titles = [
+        "ACT 1: Setting the Scene",
+        "ACT 2: Character Depth",
+        "ACT 3: The Inciting Incident",
+        "ACT 4: Rising Action",
+        "ACT 5: The Complication",
+        "ACT 6: The Climax",
+        "ACT 7: The Resolution",
+        "ACT 8: Aftermath & Final Moral"
+    ]
+
+    for i in range(1, 9):
+        print(f"[LLM] Generating {act_titles[i-1]} (Act {i}/8)...")
         
-        if total_words >= 1000:
-            break
-            
-        print(f"[RECURSIVE] Story too short. Triggering expansion...")
+        # Pass the accumulated story for continuity (last 2000 chars is enough)
+        context = full_story[-2000:] if full_story else None
+        prompt = build_8act_prompts(params, act_number=i, previous_content=context, seeds=seeds)
         
-        # Decide which act needs expansion (or both)
-        if count_words(act1_content) < 500:
-            act1_content = expand_content(act1_content, params, section_type="Beginning", seeds=seeds)
+        # Generate the act (Target ~150-200 words)
+        act_text = generate_story(prompt, params, max_tokens=600)
         
-        # Still too short? Expand Act 2
-        if (count_words(act1_content) + count_words(act2_content)) < 1000:
-            act2_content = expand_content(act2_content, params, section_type="Ending", seeds=seeds)
-            
-    return f"{act1_content}\n\n{act2_content}"
+        # Append with header for parser
+        full_story += f"\n\n## {act_titles[i-1]}\n{act_text}\n"
+        
+        print(f"  -> {act_titles[i-1]} completed. Current total: {len(full_story.split())} words.")
+
+    return full_story
 
 
 def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> str:
