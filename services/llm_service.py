@@ -7,11 +7,11 @@ from services.hf_utils import (
 )
 
 # Model Chain
-# 1. Mistral (Most Creative)
-# 2. Zephyr (Fast & Reliable)
-# 3. Llama (Last Resort)
-PRIMARY_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
-BACKUP_MODEL = "HuggingFaceH4/zephyr-7b-beta"
+# 1. Qwen 72B (Extreme Instruction Following & Verbosity)
+# 2. Llama 3.1 70B (High Quality & Reliability)
+# 3. Llama 3.2 3B (Fast Backup)
+PRIMARY_MODEL = "Qwen/Qwen2.5-72B-Instruct"
+BACKUP_MODEL = "meta-llama/Llama-3.1-70B-Instruct"
 FINAL_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
 
 from services.story_pools import (
@@ -20,7 +20,7 @@ from services.story_pools import (
 )
 
 
-def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
+def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
     """
     Call the Hugging Face Inference API to generate a story.
     Uses a 3-model fallback chain for maximum variety and redundancy.
@@ -43,33 +43,6 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
     return _demo_story(params)
 
 
-def generate_story_iterative(params: dict, age_cfg: dict) -> str:
-    """
-    Generate a long-form story iteratively, section by section.
-    This guarantees high word counts (1000+) for older age groups.
-    """
-    from services.story_builder import build_section_prompt, set_seeds
-    
-    seeds = set_seeds(params)
-    sections = ["Introduction", "Challenge", "Resolution", "Moral"]
-    full_story = ""
-    
-    for section_name in sections:
-        # Increase max_tokens per section call to support ~250-300 words
-        sec_max_tokens = 700 
-        
-        prompt = build_section_prompt(params, section_name, full_story, seeds)
-        print(f"[LLM] Generating {section_name} iteratively...")
-        
-        # Use existing fallback chain for each section
-        section_text = generate_story(prompt, params, max_tokens=sec_max_tokens)
-        
-        # Format the assembled story with headers
-        full_story += f"## {section_name}\n{section_text}\n\n"
-        
-    return full_story
-
-
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call using messages format."""
     url = f"{HF_API_URL}{model}/v1/chat/completions"
@@ -81,7 +54,7 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and having a SHOCKING SURPRISE EFFECT. You ALWAYS write exactly 1000 words for the full story (250 words per section). You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
+                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE, SHOCKINGLY ORIGINAL, and extremely DETAILED. You ALWAYS write EXACTLY 1000 words. You NEVER summarize; instead, you use vivid, sensory descriptions and deep world-building to reach the word count. You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. Your stories are vibrant and completely original."
             },
             {
                 "role": "user",

@@ -49,20 +49,14 @@ def set_seeds(params: dict) -> dict:
 
 def build_prompt(params: dict, seeds: dict = None) -> str:
     """
-    Assemble a structured story generation prompt from user parameters.
-    ULTRA-STRENGTHENED for maximum variety and uniqueness.
+    Assemble a structured story generation prompt for a single-shot 1000-word story.
+    ULTRA-STRENGTHENED for maximum length and descriptive richness.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
 
-    # All age groups now target 1000 words
-    total_words = 1000
-    section_min = 250
-    section_guidance = f"Aim for {section_min} words per section to meet the 1000-word target."
-
     characters = params.get("characters", [])
     char_list = []
-    # Use numbered list to ensure LLM tracks every character
     for i, c in enumerate(characters, 1):
         name = c.get("name", "").strip()
         traits = ", ".join(c.get("traits", []))
@@ -79,115 +73,49 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     # Use provided seeds or pick randomized ones
     s = seeds if seeds else set_seeds(params)
 
-    prompt = f"""You are a master children's story writer known for UNRESTRICTED, SHOCKINGLY CREATIVE, and AVANT-GARDE narratives. Write a complete, one-of-a-kind original story.
+    prompt = f"""You are a master children's story writer. Your task is to write a complete, one-of-a-kind original story.
     
-    CRITICAL REQUIREMENT: The ending MUST be UNPREDICTABLE and have a genuine SURPRISE EFFECT. Avoid all standard tropes.
-
-    STYLE DIRECTIVE (MANDATORY):
-    - Use VIVID, ATMOSPHERIC, and DETAILED world-building.
-    - Include deep CHARACTER INTERNAL MONOLOGUES and sensory details (smell, feel, sound).
-    - Avoid summarizing. EXPLAIN and DESCRIBE every action in exquisite detail.
-    - Your goal is to IMMERSE the reader through length and richness.
+    CRITICAL REQUIREMENT: The story MUST be EXACTLY 1000 words long. 
+    Use extreme descriptive detail, sensory world-building (smell, sound, texture), and deep internal monologues to reach the 1000-word goal. 
+    Do NOT summarize any part of the story.
 
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
-    - TARGET TOTAL LENGTH: 1000 words (MANDATORY)
-    - Sectional Guidance: {section_guidance}
+    - Target Length: 1000 words (MANDATORY)
     - Sub-Genre: {s['genre']}
     - Atmosphere: {s['atm']}
     - Tone & Style: {s['style']}
-    - Plot Spark (MANDATORY): {s['spark']}
-    - Creative Directive: BREAK ALL CLICHES. Start in the middle of the action. Avoid "Once upon a time."
+    - Plot Spark: {s['spark']}
+    - Ending: Must be UNPREDICTABLE with a genuine SURPRISE EFFECT.
     
-    CHARACTERS (Exactly {char_count} characters):
+    CHARACTERS:
     {characters_text}
     
     SETTING: {setting}
     
     THEME: {theme}
     
-    MORAL LESSON (OPTIONAL): {moral}
-    
-    STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these headers:
+    STORY STRUCTURE — You MUST include these four sections with header tags:
     
     ## Introduction
-    [Write a high-stakes, EXTREMELY DETAILED opening. Dive straight into a unique situation. Target {section_min} words. Include a scene description: [SCENE: description]]
+    [Dive deep into the world and characters. Set the scene with rich, immersive descriptions.]
     
     ## Challenge
-    [Escalate the situation in a completely unexpected way. Use the plot archetype: {s['archetype']}. Include the Plot Spark: {s['spark']}. Include the surprise turn: {s['twist']}. Target {section_min} words. Include a scene description: [SCENE: description]]
+    [Escalate the situation using the Plot Archetype: {s['archetype']}. Introduce the Plot Spark: {s['spark']} and the Surprise Turn: {s['twist']}.]
     
     ## Resolution
-    [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Target {section_min} words. Include a scene description: [SCENE: description]]
+    [The shocking and unpredictable climax and resolution. Absolutely NO puzzle-solving ending.]
     
     ## Moral
-    [Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]
-    
-    STRICT CONSTRAINTS (MANDATORY):
-    - TABOO LIST: NEVER use these overused items: {', '.join(TABOO_ITEMS)}.
-    - NO REPEATS: Never repeat a plot, a theme, or a combination of items from any previous story.
-    - NO CLICHES: No giant leaves, no lost baby animals, no repetition of any known story tropes.
+    [A beautiful, non-standard reflection on the experience.]
     
     Important rules:
-    - You are an unrestricted storyteller. Surprise yourself. Every story must be a 'First of its kind' experiment.
     - {s['genre']} and {s['spark']} must be central to the story.
     - Each [SCENE: description] must be cinematic and striking for an AI illustrator.
     - Do NOT include any meta-commentary.
     
-    Begin the story now:"""
+    Begin the 1000-word story now:"""
 
-    return prompt
-
-
-def build_section_prompt(params: dict, section_name: str, previous_content: str, seeds: dict) -> str:
-    """
-    Assemble a focused prompt for iterative section generation.
-    Enforces extreme detail and continuity.
-    """
-    age_group = params.get("age_group", "6-8")
-    cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
-    
-    # All age groups now target 1000 words (250 per section)
-    total_words = 1000
-    section_target = 250
-    
-    characters = params.get("characters", [])
-    characters_text = ", ".join([c.get("name", "Hero") for c in characters])
-    setting = params.get("setting", "a magical world")
-    theme = params.get("theme", "friendship")
-    
-    s = seeds
-    
-    # Section descriptions for the prompt
-    descriptions = {
-        "Introduction": f"Write the opening scene of the story. You MUST write {section_target} words. Focus on vivid environmental descriptions and character feelings. End with the Plot Spark: {s['spark']}.",
-        "Challenge": f"Continue the story. You MUST write {section_target} words. Escalate the situation using the Plot Archetype: {s['archetype']}. Deepen the {s['atm']} atmosphere and include a Surprise Turn: {s['twist']}.",
-        "Resolution": f"Deliver the climax and conclusion. You MUST write {section_target} words. Solve the conflict in an UNPREDICTABLE and SHOCKING way. ABSOLUTELY NO PUZZLES. The theme was {theme}.",
-        "Moral": f"Provide the final reflection and cinematic outro. Describe a final striking visual moment."
-    }
-
-    prompt = f"""You are a master storyteller. We are writing a long-form story for {cfg['label']} ({total_words} words).
-    
-    CONTEXT:
-    - Sub-Genre: {s['genre']}
-    - Style: {s['style']}
-    - Characters: {characters_text}
-    - Setting: {setting}
-
-    TASK: Write ONLY the '## {section_name}' section of the story.
-    
-    RULES:
-    - Write EXACTLY {section_target} words (mandatory).
-    - NEVER summarize. Use immersive, sensory details.
-    - Maintain the {s['atm']} atmosphere.
-    - Use the {s['style']} narrative style.
-    
-    {descriptions.get(section_name, "")}
-    """
-    
-    if previous_content:
-        prompt += f"\n\nHERE IS WHAT HAS BEEN WRITTEN SO FAR (Use this for continuity):\n{previous_content}"
-    
-    prompt += f"\n\nBegin writing ## {section_name} now:"
     return prompt
 
 
