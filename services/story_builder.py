@@ -56,15 +56,7 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
 
     characters = params.get("characters", [])
-    char_list = []
-    for i, c in enumerate(characters, 1):
-        name = c.get("name", "").strip()
-        traits = ", ".join(c.get("traits", []))
-        if name:
-            char_list.append(f"{i}. {name}: {traits}" if traits else f"{i}. {name}")
-    
-    characters_text = "\n".join(char_list) if char_list else "1. A brave young child"
-    char_count = len(char_list) if char_list else 1
+    names_str, char_detail = build_character_descriptions(characters)
 
     setting = params.get("setting", "a magical world")
     theme = params.get("theme", "friendship")
@@ -88,8 +80,8 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     - Plot Spark: {s['spark']}
     - Ending: Must be UNPREDICTABLE with a genuine SURPRISE EFFECT.
     
-    CHARACTERS:
-    {characters_text}
+    CHARACTERS (Every character MUST appear and play a role):
+    {char_detail}
     
     SETTING: {setting}
     
@@ -98,23 +90,23 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     STORY STRUCTURE — You MUST include these four sections with clear markers:
     
     [[Introduction]]
-    [Dive deep into the world and characters. Set the scene with rich, immersive descriptions.]
+    [Introduce ALL characters vividly: {names_str}. Dive deep into the world and their initial interactions. Set the scene with rich, immersive descriptions.]
     
     [[Challenge]]
-    [Escalate the situation using the Plot Archetype: {s['archetype']}. Introduce the Plot Spark: {s['spark']} and the Surprise Turn: {s['twist']}.]
+    [Escalate the situation using the Plot Archetype: {s['archetype']}. Introduce the Plot Spark: {s['spark']} and the Surprise Turn: {s['twist']}. Show how {names_str} work together or react based on their traits.]
     
     [[Resolution]]
-    [The shocking and unpredictable climax and resolution. Absolutely NO puzzle-solving ending.]
+    [The shocking and unpredictable climax and resolution involving {names_str}. Absolutely NO puzzle-solving ending.]
     
     [[Moral]]
-    [A beautiful, non-standard reflection on the experience.]
+    [A beautiful, non-standard reflection on what {names_str} learned.]
     
     Important rules:
     - {s['genre']} and {s['spark']} must be central to the story.
-    - Each [SCENE: description] must be cinematic and striking for an AI illustrator.
+    - Each [SCENE: description] must be cinematic and striking for an AI illustrator, mentioning all characters.
     - Do NOT include any meta-commentary.
     
-    Begin the 1000-word story now:"""
+    Begin the 1000-word story now:"""""
 
     return prompt
 
@@ -126,21 +118,60 @@ def build_act_prompt(params: dict, act_number: int, act1_content: str = None, se
     return ""
 
 
+def build_character_descriptions(characters: list) -> tuple:
+    """
+    Build two representations of the character list:
+    - A short comma-separated name list (e.g. 'Mia, Leo, and Sam')
+    - A detailed bulleted list with names + traits for prompt injection
+    """
+    if not characters:
+        return "a brave young hero", "- A brave young hero"
+
+    names = [c.get("name", "Hero").strip() for c in characters if c.get("name", "").strip()]
+    if not names:
+        return "a brave young hero", "- A brave young hero"
+
+    # Natural-language name list: "Mia", "Mia and Leo", "Mia, Leo, and Sam"
+    if len(names) == 1:
+        names_str = names[0]
+    elif len(names) == 2:
+        names_str = f"{names[0]} and {names[1]}"
+    else:
+        names_str = ", ".join(names[:-1]) + f", and {names[-1]}"
+
+    # Detailed description per character
+    lines = []
+    for c in characters:
+        name = c.get("name", "Hero").strip()
+        traits = c.get("traits", [])
+        if not name:
+            continue
+        if traits:
+            trait_str = ", ".join(traits)
+            lines.append(f"- {name} (traits: {trait_str})")
+        else:
+            lines.append(f"- {name}")
+    detail_str = "\n    ".join(lines) if lines else "- A brave young hero"
+
+    return names_str, detail_str
+
+
 def build_8act_prompts(params: dict, act_number: int, previous_content: str = None, seeds: dict = None) -> str:
     """
     Generate highly granular prompts for the 8-Act Narrative Engine.
     Uses non-markdown markers (no #) and enforces strict NEW content rule.
+    ALL characters are explicitly listed and required to appear in every act.
     """
     age_group = params.get("age_group", "6-8")
     cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
-    
+
     characters = params.get("characters", [])
-    characters_text = ", ".join([c.get("name", "Hero") for c in characters])
+    names_str, char_detail = build_character_descriptions(characters)
     setting = params.get("setting", "a magical world")
     theme = params.get("theme", "friendship")
-    
+
     s = seeds
-    
+
     act_titles = [
         "ACT_1: Setting the Scene",
         "ACT_2: Character Depth",
@@ -151,50 +182,53 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
         "ACT_7: The Resolution",
         "ACT_8: Aftermath & Final Moral"
     ]
-    
+
     title = act_titles[act_number - 1]
-    
+
     prompt = f"""You are a master children's storyteller. We are writing a detailed, long-form story (1200+ words).
-    
+
     CONTEXT:
     - Sub-Genre: {s['genre']}
     - Atmosphere: {s['atm']}
-    - Characters: {characters_text}
+    - ALL CHARACTERS (every single one MUST appear and speak or act in this segment):
+    {char_detail}
     - Setting: {setting}
-    
+    - Theme: {theme}
+
     TASK: Write ONLY the segment for '{title}'.
-    
+
     CRITICAL RULES (MANDATORY):
     - Do NOT use the '#' symbol anywhere in your response.
     - Write exactly '[[{title}]]' as your first line.
     - Write NEW CONTENT ONLY. Do NOT repeat, summarize, or rephrase any previous acts.
     - Write at least 150 words of rich, descriptive prose for this specific act.
+    - EVERY character listed above MUST appear in this segment — give each character dialogue, action, or internal thought.
     - Focus exclusively on adding new dialogue, internal monologue, and environmental details.
-    
+
     SPECIFIC INSTRUCTIONS FOR {title}:
     """
-    
+
     if act_number == 1:
-        prompt += f"Begin the story in {setting}. Deeply describe the environment and the first moment we see {characters_text}."
+        prompt += f"Begin the story in {setting}. Introduce ALL of the characters: {names_str}. Describe the environment and each character's first moment vividly."
     elif act_number == 2:
-        prompt += f"Deepen our understanding of {characters_text}. Describe their internal thoughts and sensory experience of {setting}."
+        prompt += f"Deepen our understanding of EACH character: {names_str}. Give every character unique internal thoughts, personality, and sensory experience of {setting}."
     elif act_number == 3:
-        prompt += f"Introduce the Plot Spark: {s['spark']}. Something changes in {setting}. How does {characters_text} react?"
+        prompt += f"Introduce the Plot Spark: {s['spark']}. Something changes in {setting}. Show how EACH of the characters — {names_str} — reacts differently based on their personality."
     elif act_number == 4:
-        prompt += f"The situation escalates. Describe the first trials facing {characters_text}. Focus on {s['atm']} atmosphere."
+        prompt += f"The situation escalates. Describe the trials facing {names_str} together. Each character must contribute uniquely. Focus on {s['atm']} atmosphere."
     elif act_number == 5:
-        prompt += f"Introduce the Plot Archetype: {s['archetype']}. A huge complication arises. Include the Surprise Turn: {s['twist']}."
+        prompt += f"Introduce the Plot Archetype: {s['archetype']}. A huge complication arises that affects {names_str} differently. Include the Surprise Turn: {s['twist']}."
     elif act_number == 6:
-        prompt += f"The final confrontation. The stakes are at their highest. Describe the action and emotion in slow-motion detail."
+        prompt += f"The final confrontation. ALL characters — {names_str} — must play an active role. Describe each character's action and emotion in slow-motion detail."
     elif act_number == 7:
-        prompt += f"The climax resolves. How does the world of {setting} change? Focus on {theme} theme."
+        prompt += f"The climax resolves. How do {names_str} each react to the resolution? Focus on the {theme} theme and show each character's personal growth."
     elif act_number == 8:
-        prompt += f"A peaceful closing scene. What lesson did {characters_text} learn? End with a final striking visual moment."
-        
+        prompt += f"A peaceful closing scene. Reflect on what {names_str} each learned. End with a final striking visual moment featuring all the characters together."
+
     if previous_content:
         # Pass the last segment for continuity
         prompt += f"\n\n--- PREVIOUS ACT (FOR CONTEXT ONLY - DO NOT REPEAT THIS IN YOUR RESPONSE) ---\n{previous_content[-1000:]}"
-        
+
     prompt += f"\n\nBegin writing [[{title}]] now (Target: 150+ new words):"
     return prompt
 
@@ -243,11 +277,10 @@ def parse_story(raw_text: str, params: dict) -> dict:
             "scene_description": scene_description
         })
 
-    # Generate a story title
     characters = params.get("characters", [])
-    char_name = characters[0].get("name", "Hero") if characters else "Young Hero"
+    names_str, _ = build_character_descriptions(characters)
     theme = params.get("theme", "adventure")
-    title = _generate_title(char_name, theme, params.get("setting", ""))
+    title = _generate_title(names_str, theme, params.get("setting", ""))
 
     return {
         "title": title,
@@ -269,17 +302,17 @@ def _extract_fallback_section(text: str, index: int, total: int) -> str:
 
 
 def _generate_default_scene(section_name: str, params: dict) -> str:
-    """Generate a default scene description if not found in LLM output."""
+    """Generate a default scene description using ALL characters if not found in LLM output."""
     setting = params.get("setting", "a magical land")
     chars = params.get("characters", [])
-    char_name = chars[0].get("name", "our hero") if chars else "our hero"
+    names_str, _ = build_character_descriptions(chars)
     scenes = {
-        "Introduction": f"{char_name} standing in {setting}, eyes wide with wonder",
-        "Challenge": f"{char_name} facing a difficult moment in {setting}, determined and brave",
-        "Resolution": f"{char_name} smiling triumphantly in {setting}, having overcome the challenge",
-        "Moral": f"{char_name} and friends together in {setting}, basking in a warm golden light"
+        "Introduction": f"{names_str} standing together in {setting}, eyes wide with wonder",
+        "Challenge": f"{names_str} facing a difficult moment in {setting}, determined and brave",
+        "Resolution": f"{names_str} smiling triumphantly in {setting}, having overcome the challenge together",
+        "Moral": f"{names_str} together in {setting}, basking in a warm golden light"
     }
-    return scenes.get(section_name, f"A beautiful scene in {setting}")
+    return scenes.get(section_name, f"{names_str} in a beautiful scene in {setting}")
 
 
 def _generate_title(char_name: str, theme: str, setting: str) -> str:

@@ -18,6 +18,7 @@ from services.story_pools import (
     PLOT_ARCHETYPES, SURPRISE_TWISTS, NARRATIVE_STYLES, 
     SUB_GENRES, PLOT_SPARKS, ATMOSPHERES
 )
+from services.story_builder import build_character_descriptions
 
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
@@ -170,11 +171,12 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
 def _demo_story(params: dict) -> str:
     """
     Return a High-Quality, Non-Repeating 1000-word fallback story.
-    No '#' symbols are used.
+    No '#' symbols are used. Supports multiple characters.
     """
     import random
     characters = params.get("characters", [])
-    main_char = characters[0].get("name", "Alex") if characters else "Alex"
+    names_str, _ = build_character_descriptions(characters)
+    
     setting = params.get("setting", "a hidden world")
     theme = params.get("theme", "courage")
     moral = params.get("moral", "").strip() or "Adventure is out there."
@@ -194,28 +196,28 @@ def _demo_story(params: dict) -> str:
     s8 = "ACT_8: Aftermath & Final Moral"
 
     return f"""[[{s1}]]
-The air in {setting} was {atm}, carrying the scent of ancient stars and secrets yet to be told. In the heart of this {gen} realm, {main_char} walked with a sense of wonder that filled their heart like a rising tide. Every stone and every leaf seemed to whisper of a grander design, a story waiting to be written by their very footsteps.
+The air in {setting} was {atm}, carrying the scent of ancient stars and secrets yet to be told. In the heart of this {gen} realm, {names_str} walked with a sense of wonder that filled their hearts like a rising tide. Every stone and every leaf seemed to whisper of a grander design, a story waiting to be written by their very footsteps.
 
 [[{s2}]]
-{main_char} stopped to notice the way the light caught the edges of the world, creating ripples of Neon and Luminous color. They had always been a wanderer, but in {setting}, the journey felt different. It was as if their own internal world was finally matching the vibrancy of the external landscape, a harmony of spirit and space.
+{names_str} stopped to notice the way the light caught the edges of the world, creating ripples of Neon and Luminous color. They had always been wanderers, but in {setting}, the journey felt different. It was as if their own internal worlds were finally matching the vibrancy of the external landscape, a harmony of spirit and space.
 
 [[{s3}]]
-Suddenly, a flicker of something impossible caught their eye. A discovery so strange that it defied all logic: a hidden pulse within the very ground beneath them. It was a moment of pure realization: {main_char} wasn't just in {setting}; they were part of it, a crucial chapter in its unfolding mystery.
+Suddenly, a flicker of something impossible caught their eyes. A discovery so strange that it defied all logic: a hidden pulse within the very ground beneath them. It was a moment of pure realization: {names_str} weren't just in {setting}; they were part of it, a crucial chapter in its unfolding mystery.
 
 [[{s4}]]
-The path forward began to shift and transform, presenting trials that tested every ounce of {main_char}'s {theme}. The world seemed to respond to their presence, creating challenges that were as much about the mind as they were about the physical journey. Each step was a commitment to the path they had chosen.
+The path forward began to shift and transform, presenting trials that tested every ounce of their {theme}. The world seemed to respond to their presence, creating challenges that were as much about the mind as they were about the physical journey. Each step was a commitment to the path they had chosen together.
 
 [[{s5}]]
-But then, a complication arose—a twist that made the goal seem further away than ever. It was a test of resilience, a moment where the atmosphere of {setting} turned from wonder to deep, cinematic mystery. The Stakes were clear now: the transformation of this world depended on {main_char}'s choices.
+But then, a complication arose—a twist that made the goal seem further away than ever. It was a test of resilience, a moment where the atmosphere of {setting} turned from wonder to deep, cinematic mystery. The Stakes were clear now: the transformation of this world depended on the choices made by {names_str}.
 
 [[{s6}]]
-The climax was a blur of action and intense emotion. With a heart full of {theme}, {main_char} faced the core of the problem. It wasn't just about winning; it was about understanding, about finding the balance between the {atm} energy of the realm and their own courage.
+The climax was a blur of action and intense emotion. With hearts full of {theme}, {names_str} faced the core of the problem. It wasn't just about winning; it was about understanding, about finding the balance between the {atm} energy of the realm and their own courage.
 
 [[{s7}]]
-As the light stabilized, a new resolution emerged. The world of {setting} took on a soft, golden glow, a reflection of the peace that {main_char} had found. The challenge hadn't shifted them; it had refined them, turning their initial curiosity into a lasting wisdom.
+As the light stabilized, a new resolution emerged. The world of {setting} took on a soft, golden glow, a reflection of the peace that {names_str} had found. The challenge hadn't shifted them; it had refined them, turning their initial curiosity into a lasting wisdom.
 
 [[{s8}]]
-The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {main_char} stood as a beacon of {theme}, a hero who didn't just survive an adventure, but helped a world find its soul once again.
+The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {names_str} stood as beacons of {theme}, heroes who didn't just survive an adventure, but helped a world find its soul once again.
 
-[SCENE: {main_char} standing triumphantly in the heart of {setting}, surrounded by the peaceful, glowing energy of their discovery.]
+[SCENE: {names_str} standing triumphantly in the heart of {setting}, surrounded by the peaceful, glowing energy of their discovery.]
 """
