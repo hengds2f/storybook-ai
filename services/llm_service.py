@@ -7,9 +7,10 @@ from services.hf_utils import (
 )
 
 # Model Chain
-# 1. Qwen 72B (Extreme Instruction Following & Verbosity)
-# 2. Llama 3.1 70B (High Quality & Reliability)
-# 3. Llama 3.2 3B (Fast Backup)
+# 1. Google Gemini 1.5 Flash (Primary - Superior Creativity & Speed)
+# 2. Qwen 72B (Extreme Instruction Following & Verbosity)
+# 3. Llama 3.1 70B (High Quality & Reliability)
+GEMINI_MODEL = "gemini-1.5-flash"
 PRIMARY_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 BACKUP_MODEL = "meta-llama/Llama-3.1-70B-Instruct"
 FINAL_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
@@ -23,22 +24,30 @@ from services.story_builder import build_character_descriptions
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
     """
-    Call the Hugging Face Inference API to generate a story.
-    Uses a 3-model fallback chain for maximum variety and redundancy.
+    Generate a story using the best available AI model.
+    Prioritizes Google Gemini, with a 3-model Hugging Face fallback chain.
     """
-    token = get_hf_token()
-
-    if not token:
-        return None
-
-    for model in [PRIMARY_MODEL, BACKUP_MODEL, FINAL_MODEL]:
+    # 1. Try Google Gemini first if API key is present
+    google_key = os.environ.get("GOOGLE_API_KEY")
+    if google_key:
         try:
-            result = _call_hf_api(model, prompt, max_tokens)
+            result = _call_gemini_api(GEMINI_MODEL, prompt, max_tokens)
             if result:
                 return result
         except Exception as e:
-            print(f"[LLM] Model {model} failed: {e}")
-            continue
+            print(f"[LLM] Gemini failure: {e}")
+
+    # 2. Fallback to Hugging Face
+    token = get_hf_token()
+    if token:
+        for model in [PRIMARY_MODEL, BACKUP_MODEL, FINAL_MODEL]:
+            try:
+                result = _call_hf_api(model, prompt, max_tokens)
+                if result:
+                    return result
+            except Exception as e:
+                print(f"[LLM] HF Model {model} failed: {e}")
+                continue
 
     return None
 
@@ -121,6 +130,42 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
     
     expanded_text = generate_story(expansion_prompt, params, max_tokens=1500)
     return expanded_text if count_words(expanded_text) > current_count else text
+
+
+def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
+    """Make the actual API call to Google Gemini."""
+    import google.generativeai as genai
+    
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return None
+        
+    genai.configure(api_key=api_key)
+    
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your stories are FAMOUS for being UNPREDICTABLE and extremely DETAILED. You ALWAYS write EXACTLY 1000 words in total. You NEVER use the '#' symbol. You NEVER summarize. Use vivid, sensory descriptions and directly address the reader occasionally."
+    )
+    
+    # Increase temperature and top_p for variety as requested
+    generation_config = {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 40,
+        "max_output_tokens": max_tokens,
+    }
+    
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config
+        )
+        if response and response.text:
+            return response.text.strip()
+    except Exception as e:
+        print(f"[LLM] Gemini Error: {e}")
+        
+    return None
 
 
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:

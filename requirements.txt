@@ -6,3 +6,4 @@ gunicorn>=21.2.0
 Pillow>=10.2.0
 huggingface_hub>=0.22.0
 fpdf2>=2.7.0
+google-generativeai>=0.4.0
