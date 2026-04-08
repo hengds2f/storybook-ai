@@ -35,7 +35,19 @@ AGE_CONFIG = {
 }
 
 
-def build_prompt(params: dict) -> str:
+def set_seeds(params: dict) -> dict:
+    """Select and persist randomized narrative seeds for iterative generation."""
+    return {
+        "archetype": random.choice(PLOT_ARCHETYPES),
+        "twist": random.choice(SURPRISE_TWISTS),
+        "style": random.choice(NARRATIVE_STYLES),
+        "genre": random.choice(SUB_GENRES),
+        "spark": random.choice(PLOT_SPARKS),
+        "atm": random.choice(ATMOSPHERES)
+    }
+
+
+def build_prompt(params: dict, seeds: dict = None) -> str:
     """
     Assemble a structured story generation prompt from user parameters.
     ULTRA-STRENGTHENED for maximum variety and uniqueness.
@@ -64,13 +76,8 @@ def build_prompt(params: dict) -> str:
     theme = params.get("theme", "friendship")
     moral = params.get("moral", "").strip() or "The unexpected path is often the best one."
 
-    # Select randomized narrative seeds
-    archetype = random.choice(PLOT_ARCHETYPES)
-    twist = random.choice(SURPRISE_TWISTS)
-    style = random.choice(NARRATIVE_STYLES)
-    genre = random.choice(SUB_GENRES)
-    spark = random.choice(PLOT_SPARKS)
-    atm = random.choice(ATMOSPHERES)
+    # Use provided seeds or pick randomized ones
+    s = seeds if seeds else set_seeds(params)
 
     prompt = f"""You are a master children's story writer known for UNRESTRICTED, SHOCKINGLY CREATIVE, and AVANT-GARDE narratives. Write a complete, one-of-a-kind original story.
     
@@ -86,10 +93,10 @@ def build_prompt(params: dict) -> str:
     - Age Group: {cfg['label']}
     - MINIMUM TOTAL LENGTH: {cfg['length']} (MANDATORY - Short responses will be rejected)
     - Sectional Guidance: {section_guidance}
-    - Sub-Genre: {genre}
-    - Atmosphere: {atm}
-    - Tone & Style: {style}
-    - Plot Spark (MANDATORY): {spark}
+    - Sub-Genre: {s['genre']}
+    - Atmosphere: {s['atm']}
+    - Tone & Style: {s['style']}
+    - Plot Spark (MANDATORY): {s['spark']}
     - Creative Directive: BREAK ALL CLICHES. Start in the middle of the action. Avoid "Once upon a time."
     
     CHARACTERS (Exactly {char_count} characters):
@@ -107,7 +114,7 @@ def build_prompt(params: dict) -> str:
     [Write a high-stakes, EXTREMELY DETAILED opening. Dive straight into a unique situation. Aim for {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Challenge
-    [Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include the Plot Spark: {spark}. Include the surprise turn: {twist}. Aim for {section_min} words. Include a scene description: [SCENE: description]]
+    [Escalate the situation in a completely unexpected way. Use the plot archetype: {s['archetype']}. Include the Plot Spark: {s['spark']}. Include the surprise turn: {s['twist']}. Aim for {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Resolution
     [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Aim for {section_min} words. Include a scene description: [SCENE: description]]
@@ -122,12 +129,64 @@ def build_prompt(params: dict) -> str:
     
     Important rules:
     - You are an unrestricted storyteller. Surprise yourself. Every story must be a 'First of its kind' experiment.
-    - {genre} and {spark} must be central to the story.
+    - {s['genre']} and {s['spark']} must be central to the story.
     - Each [SCENE: description] must be cinematic and striking for an AI illustrator.
     - Do NOT include any meta-commentary.
     
     Begin the story now:"""
 
+    return prompt
+
+
+def build_section_prompt(params: dict, section_name: str, previous_content: str, seeds: dict) -> str:
+    """
+    Assemble a focused prompt for iterative section generation.
+    Enforces extreme detail and continuity.
+    """
+    age_group = params.get("age_group", "6-8")
+    cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
+    
+    total_words = 1000 if age_group == "9-12" else 500
+    section_min = total_words // 4
+    
+    characters = params.get("characters", [])
+    characters_text = ", ".join([c.get("name", "Hero") for c in characters])
+    setting = params.get("setting", "a magical world")
+    theme = params.get("theme", "friendship")
+    
+    s = seeds
+    
+    # Section descriptions for the prompt
+    descriptions = {
+        "Introduction": f"Write the opening scene of the story. You MUST write at least {section_min} words. Focus on vivid environmental descriptions and character feelings. End with the Plot Spark: {s['spark']}.",
+        "Challenge": f"Continue the story. You MUST write at least {section_min} words. Escalate the situation using the Plot Archetype: {s['archetype']}. Deepen the {s['atm']} atmosphere and include a Surprise Turn: {s['twist']}.",
+        "Resolution": f"Deliver the climax and conclusion. You MUST write at least {section_min} words. Solve the conflict in an UNPREDICTABLE and SHOCKING way. ABSOLUTELY NO PUZZLES. The theme was {theme}.",
+        "Moral": f"Provide the final reflection and cinematic outro. Describe a final striking visual moment."
+    }
+
+    prompt = f"""You are a master storyteller. We are writing a long-form story for {cfg['label']} ({total_words}+ words).
+    
+    CONTEXT:
+    - Sub-Genre: {s['genre']}
+    - Style: {s['style']}
+    - Characters: {characters_text}
+    - Setting: {setting}
+
+    TASK: Write ONLY the '## {section_name}' section of the story.
+    
+    RULES:
+    - Write AT LEAST {section_min} words (mandatory).
+    - NEVER summarize. Use immersive, sensory details.
+    - Maintain the {s['atm']} atmosphere.
+    - Use the {s['style']} narrative style.
+    
+    {descriptions.get(section_name, "")}
+    """
+    
+    if previous_content:
+        prompt += f"\n\nHERE IS WHAT HAS BEEN WRITTEN SO FAR (Use this for continuity):\n{previous_content}"
+    
+    prompt += f"\n\nBegin writing ## {section_name} now:"
     return prompt
 
 

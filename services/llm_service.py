@@ -43,6 +43,34 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 900) -> str:
     return _demo_story(params)
 
 
+def generate_story_iterative(params: dict, age_cfg: dict) -> str:
+    """
+    Generate a long-form story iteratively, section by section.
+    This guarantees high word counts (1000+) for older age groups.
+    """
+    from services.story_builder import build_section_prompt, set_seeds
+    
+    seeds = set_seeds(params)
+    sections = ["Introduction", "Challenge", "Resolution", "Moral"]
+    full_story = ""
+    
+    for section_name in sections:
+        # Increase max_tokens per section call for 9-12 age group
+        # (approx 400-500 tokens per section)
+        sec_max_tokens = 600
+        
+        prompt = build_section_prompt(params, section_name, full_story, seeds)
+        print(f"[LLM] Generating {section_name} iteratively...")
+        
+        # Use existing fallback chain for each section
+        section_text = generate_story(prompt, params, max_tokens=sec_max_tokens)
+        
+        # Format the assembled story with headers
+        full_story += f"## {section_name}\n{section_text}\n\n"
+        
+    return full_story
+
+
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call using messages format."""
     url = f"{HF_API_URL}{model}/v1/chat/completions"

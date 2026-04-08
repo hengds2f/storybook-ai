@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, request, jsonify, session, render_template
-from services.llm_service import generate_story
+from services.llm_service import generate_story, generate_story_iterative
 from services.story_builder import build_prompt, parse_story, get_age_config
 from services.storage import (
     save_story, get_stories_for_profile, get_story_by_id,
@@ -46,8 +46,11 @@ def generate():
     age_cfg = get_age_config(params["age_group"])
 
     # Build and send prompt
-    prompt = build_prompt(params)
-    raw_text = generate_story(prompt, params, max_tokens=age_cfg["max_tokens"])
+    if params["age_group"] == "9-12":
+        raw_text = generate_story_iterative(params, age_cfg)
+    else:
+        prompt = build_prompt(params)
+        raw_text = generate_story(prompt, params, max_tokens=age_cfg["max_tokens"])
 
     # Parse the structured output
     content = parse_story(raw_text, params)
