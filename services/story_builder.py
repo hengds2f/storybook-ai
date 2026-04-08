@@ -14,23 +14,23 @@ AGE_CONFIG = {
     "3-5": {
         "label": "Ages 3–5",
         "vocabulary": "very simple words, short sentences, lots of repetition",
-        "length": "very short (about 300–400 words)",
+        "length": "exactly 100 words",
         "complexity": "simple and magical, with clear cause-and-effect",
-        "max_tokens": 600
+        "max_tokens": 300
     },
     "6-8": {
         "label": "Ages 6–8",
         "vocabulary": "simple but varied vocabulary, moderate sentence length",
-        "length": "medium length (about 500–700 words)",
+        "length": "exactly 500 words",
         "complexity": "engaging with a clear problem to solve",
-        "max_tokens": 900
+        "max_tokens": 800
     },
     "9-12": {
         "label": "Ages 9–12",
         "vocabulary": "richer vocabulary with descriptive language",
-        "length": "longer (about 800–1000 words)",
+        "length": "exactly 1000 words",
         "complexity": "more nuanced with character development and descriptive scenes",
-        "max_tokens": 1300
+        "max_tokens": 1500
     }
 }
 
@@ -73,6 +73,7 @@ def build_prompt(params: dict) -> str:
 
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
+    - Target Length: {cfg['length']} (MANDATORY)
     - Sub-Genre: {genre}
     - Atmosphere: {atm}
     - Tone & Style: {style}
