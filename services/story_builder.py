@@ -76,9 +76,15 @@ def build_prompt(params: dict) -> str:
     
     CRITICAL REQUIREMENT: The ending MUST be UNPREDICTABLE and have a genuine SURPRISE EFFECT. Avoid all standard tropes.
 
+    STYLE DIRECTIVE (MANDATORY):
+    - Use VIVID, ATMOSPHERIC, and DETAILED world-building.
+    - Include deep CHARACTER INTERNAL MONOLOGUES and sensory details (smell, feel, sound).
+    - Avoid summarizing. EXPLAIN and DESCRIBE every action in exquisite detail.
+    - Your goal is to IMMERSE the reader through length and richness.
+
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
-    - MINIMUM TOTAL LENGTH: {cfg['length']} (MANDATORY)
+    - MINIMUM TOTAL LENGTH: {cfg['length']} (MANDATORY - Short responses will be rejected)
     - Sectional Guidance: {section_guidance}
     - Sub-Genre: {genre}
     - Atmosphere: {atm}
@@ -98,13 +104,13 @@ def build_prompt(params: dict) -> str:
     STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these headers:
     
     ## Introduction
-    [Write a high-stakes opening that hooks the reader immediately. Dive straight into a unique situation. Include a scene description: [SCENE: description]]
+    [Write a high-stakes, EXTREMELY DETAILED opening. Dive straight into a unique situation. Aim for {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Challenge
-    [Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include the Plot Spark: {spark}. Include the surprise turn: {twist}. Include a scene description: [SCENE: description]]
+    [Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include the Plot Spark: {spark}. Include the surprise turn: {twist}. Aim for {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Resolution
-    [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Include a scene description: [SCENE: description]]
+    [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Aim for {section_min} words. Include a scene description: [SCENE: description]]
     
     ## Moral
     [Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]

@@ -54,7 +54,7 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and having a SHOCKING SURPRISE EFFECT. You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
+                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and having a SHOCKING SURPRISE EFFECT. You ALWAYS write long, detailed, and descriptive stories that meet the requested word count. You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
             },
             {
                 "role": "user",
