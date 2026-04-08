@@ -120,7 +120,7 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
 
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call to Google Gemini."""
-    import google.generativeai as genai
+    import google.genai as genai
     
     api_key = os.environ.get("GOOGLE_API_KEY")
     if not api_key:
