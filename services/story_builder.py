@@ -119,6 +119,66 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     return prompt
 
 
+def build_act_prompt(params: dict, act_number: int, act1_content: str = None, seeds: dict = None) -> str:
+    """
+    Assemble a focused prompt for a specific Act (Introduction/Challenge or Resolution/Moral).
+    Enforces extreme length (~500 words per Act) to reach 1000 total.
+    """
+    age_group = params.get("age_group", "6-8")
+    cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
+    
+    characters = params.get("characters", [])
+    characters_text = ", ".join([c.get("name", "Hero") for c in characters])
+    setting = params.get("setting", "a magical world")
+    theme = params.get("theme", "friendship")
+    
+    s = seeds
+    
+    if act_number == 1:
+        prompt = f"""You are a master storyteller. We are writing PART ONE (the first 500 words) of a 1000-word story.
+        
+        CONTEXT:
+        - Sub-Genre: {s['genre']}
+        - Atmosphere: {s['atm']}
+        - Narrative Style: {s['style']}
+        - Characters: {characters_text}
+        - Setting: {setting}
+        
+        TASK: Write ONLY the '## Introduction' and '## Challenge' sections.
+        
+        MANDATORY RULES:
+        - You MUST write at least 500 words total for this part.
+        - Dive deep into every sensory detail. Describe the air, the colors, the sounds, and the character's internal thoughts at great length.
+        - Do NOT summarize any action. Expand every moment.
+        - Include the Plot Archetype: {s['archetype']} and the Plot Spark: {s['spark']}.
+        - Format with '## Introduction' and '## Challenge' headers.
+        
+        Begin PART ONE of the 1000-word story now:"""
+    else:
+        prompt = f"""You are a master storyteller. We are writing PART TWO (the final 500 words) of a 1000-word story.
+        
+        CONTEXT:
+        - Part One was already written (see below).
+        - Characters: {characters_text}
+        - Theme: {theme}
+        
+        TASK: Write ONLY the '## Resolution' and '## Moral' sections.
+        
+        MANDATORY RULES:
+        - You MUST write at least 500 words total for this part.
+        - Use extreme detail to expand the climax. Describe every breath and every shifting shadow.
+        - Ensure an UNPREDICTABLE and SHOCKING Resolution (No puzzles!).
+        - Include a Surprise Turn: {s['twist']}.
+        - Format with '## Resolution' and '## Moral' headers.
+        
+        HERE IS PART ONE FOR CONTINUITY:
+        {act1_content}
+        
+        Begin PART TWO (the final 500 words) now:"""
+        
+    return prompt
+
+
 def parse_story(raw_text: str, params: dict) -> dict:
     """
     Parse the LLM output into structured story sections.

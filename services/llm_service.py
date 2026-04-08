@@ -43,6 +43,30 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
     return _demo_story(params)
 
 
+def generate_story_sequentially(params: dict) -> str:
+    """
+    Generate a 1000-word story in two sequential parts (Acts).
+    Part 1: Intro + Challenge
+    Part 2: Resolution + Moral (using Part 1 as context)
+    """
+    from services.story_builder import build_act_prompt, set_seeds
+    
+    seeds = set_seeds(params)
+    
+    # PART 1: Intro and Challenge (~500 words)
+    prompt1 = build_act_prompt(params, act_number=1, seeds=seeds)
+    print("[LLM] Generating Part 1 (Intro/Challenge)...")
+    act1_content = generate_story(prompt1, params, max_tokens=1500)
+    
+    # PART 2: Resolution and Moral (~500 words)
+    prompt2 = build_act_prompt(params, act_number=2, act1_content=act1_content, seeds=seeds)
+    print("[LLM] Generating Part 2 (Resolution/Moral)...")
+    act2_content = generate_story(prompt2, params, max_tokens=1500)
+    
+    # Assemble final text
+    return f"{act1_content}\n\n{act2_content}"
+
+
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call using messages format."""
     url = f"{HF_API_URL}{model}/v1/chat/completions"
