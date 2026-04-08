@@ -95,18 +95,18 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     
     THEME: {theme}
     
-    STORY STRUCTURE — You MUST include these four sections with header tags:
+    STORY STRUCTURE — You MUST include these four sections with clear markers:
     
-    ## Introduction
+    [[Introduction]]
     [Dive deep into the world and characters. Set the scene with rich, immersive descriptions.]
     
-    ## Challenge
+    [[Challenge]]
     [Escalate the situation using the Plot Archetype: {s['archetype']}. Introduce the Plot Spark: {s['spark']} and the Surprise Turn: {s['twist']}.]
     
-    ## Resolution
+    [[Resolution]]
     [The shocking and unpredictable climax and resolution. Absolutely NO puzzle-solving ending.]
     
-    ## Moral
+    [[Moral]]
     [A beautiful, non-standard reflection on the experience.]
     
     Important rules:
