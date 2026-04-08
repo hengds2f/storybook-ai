@@ -65,11 +65,11 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
     # Use provided seeds or pick randomized ones
     s = seeds if seeds else set_seeds(params)
 
-    prompt = f"""You are a master children's story writer. Your task is to write a complete, one-of-a-kind original story.
+    prompt = f"""You are a master children's story writer, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your task is to write a complete, one-of-a-kind original story.
     
     CRITICAL REQUIREMENT: The story MUST be EXACTLY 1000 words long. 
     Use extreme descriptive detail, sensory world-building (smell, sound, texture), and deep internal monologues to reach the 1000-word goal. 
-    Do NOT summarize any part of the story.
+    Do NOT summarize any part of the story. Include a narrator's voice that occasionally addresses the reader directly (e.g., 'Now, you must understand...').
 
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
@@ -185,12 +185,12 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
 
     title = act_titles[act_number - 1]
 
-    prompt = f"""You are a master children's storyteller. We are writing a detailed, long-form story (1200+ words).
+    prompt = f"""You are a master children's storyteller, writing with the charm, wisdom, and whimsicality of C.S. Lewis. We are writing a detailed, long-form story (1200+ words) set in a world as magical as Narnia.
 
     CONTEXT:
     - Sub-Genre: {s['genre']}
-    - Atmosphere: {s['atm']}
-    - ALL CHARACTERS (every single one MUST appear and speak or act in this segment):
+    - Atmosphere: {s['atm']} (Ensure it feels magical, ancient, and wonder-filled)
+    - ALL CHARACTERS (every single one MUST appear and speak or act in this segment, behaving with the dignity of heroes or the curiosity of children):
     {char_detail}
     - Setting: {setting}
     - Theme: {theme}

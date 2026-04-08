@@ -134,7 +134,7 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and extremely DETAILED. You ALWAYS write EXACTLY 1000 words in total. You NEVER use the '#' symbol. You NEVER summarize. Use vivid, sensory descriptions."
+                "content": "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your stories are FAMOUS for being UNPREDICTABLE and extremely DETAILED. You ALWAYS write EXACTLY 1000 words in total. You NEVER use the '#' symbol. You NEVER summarize. Use vivid, sensory descriptions and directly address the reader occasionally."
             },
             {
                 "role": "user",
@@ -196,28 +196,28 @@ def _demo_story(params: dict) -> str:
     s8 = "ACT_8: Aftermath & Final Moral"
 
     return f"""[[{s1}]]
-The air in {setting} was {atm}, carrying the scent of ancient stars and secrets yet to be told. In the heart of this {gen} realm, {names_str} walked with a sense of wonder that filled their hearts like a rising tide. Every stone and every leaf seemed to whisper of a grander design, a story waiting to be written by their very footsteps.
+The air in {setting} was {atm}, carrying the crisp scent of pine needles and something else—something that felt remarkably like magic and old, forgotten songs. In the heart of this realm, {names_str} walked with a sense of wonder that filled their hearts like a rising tide. Now, you must understand that this wasn't just any world; it was a place where every stone and every leaf seemed to whisper of a grander design, a story waiting to be written by their very footsteps.
 
 [[{s2}]]
-{names_str} stopped to notice the way the light caught the edges of the world, creating ripples of Neon and Luminous color. They had always been wanderers, but in {setting}, the journey felt different. It was as if their own internal worlds were finally matching the vibrancy of the external landscape, a harmony of spirit and space.
+{names_str} stopped to notice the way the light caught the edges of the world, creating ripples of Neon and Luminous color. They had always been wanderers, but in {setting}, the journey felt different. It was as if their own internal worlds were finally matching the vibrancy of the external landscape, a harmony of spirit and space that only the very brave or the very curious ever truly find.
 
 [[{s3}]]
-Suddenly, a flicker of something impossible caught their eyes. A discovery so strange that it defied all logic: a hidden pulse within the very ground beneath them. It was a moment of pure realization: {names_str} weren't just in {setting}; they were part of it, a crucial chapter in its unfolding mystery.
+Suddenly, a flicker of something impossible caught their eyes. A discovery so strange that it defied all logic: a hidden pulse within the very ground beneath them. It was a moment of pure realization: {names_str} weren't just visitors in {setting}; they were part of it, a crucial chapter in its unfolding mystery, like characters in a book who suddenly realize they are being read.
 
 [[{s4}]]
-The path forward began to shift and transform, presenting trials that tested every ounce of their {theme}. The world seemed to respond to their presence, creating challenges that were as much about the mind as they were about the physical journey. Each step was a commitment to the path they had chosen together.
+The path forward began to shift and transform, presenting trials that tested every ounce of their {theme}. The world seemed to respond to their presence, creating challenges that were as much about the mind as they were about the physical journey. Each step was a commitment to the path they had chosen together, for in {setting}, one never truly travels alone if they have a friend and a true heart.
 
 [[{s5}]]
-But then, a complication arose—a twist that made the goal seem further away than ever. It was a test of resilience, a moment where the atmosphere of {setting} turned from wonder to deep, cinematic mystery. The Stakes were clear now: the transformation of this world depended on the choices made by {names_str}.
+But then, a complication arose—a twist that made the goal seem further away than ever. It was a test of resilience, a moment where the atmosphere of {setting} turned from wonder to deep, cinematic mystery. The Stakes were clear now: the transformation of this world depended on the choices made by {names_str}, and as any good explorer knows, the hardest choice is often the right one.
 
 [[{s6}]]
-The climax was a blur of action and intense emotion. With hearts full of {theme}, {names_str} faced the core of the problem. It wasn't just about winning; it was about understanding, about finding the balance between the {atm} energy of the realm and their own courage.
+The climax was a blur of action and intense emotion. With hearts full of {theme}, {names_str} faced the core of the problem. It wasn't just about winning; it was about understanding, about finding the balance between the {atm} energy of the realm and their own courage. It was a battle of wills, where kindness proved sharper than any sword.
 
 [[{s7}]]
-As the light stabilized, a new resolution emerged. The world of {setting} took on a soft, golden glow, a reflection of the peace that {names_str} had found. The challenge hadn't shifted them; it had refined them, turning their initial curiosity into a lasting wisdom.
+As the light stabilized, a new resolution emerged. The world of {setting} took on a soft, golden glow, a reflection of the peace that {names_str} had found. The challenge hadn't shifted them; it had refined them, turning their initial curiosity into a lasting wisdom that would stay with them long after they left this magical place.
 
 [[{s8}]]
-The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {names_str} stood as beacons of {theme}, heroes who didn't just survive an adventure, but helped a world find its soul once again.
+The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {names_str} stood as beacons of {theme}, heroes who didn't just survive an adventure, but helped a world find its soul once again. And that, I think, is the best kind of adventure there is.
 
-[SCENE: {names_str} standing triumphantly in the heart of {setting}, surrounded by the peaceful, glowing energy of their discovery.]
+[SCENE: {names_str} standing triumphantly in the heart of {setting}, surrounded by the peaceful, glowing energy of their discovery, looking like kings and queens of an ancient realm.]
 """

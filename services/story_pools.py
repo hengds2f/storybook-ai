@@ -41,7 +41,8 @@ NARRATIVE_STYLES = [
     "Wonder-filled and Lyrical (using beautiful, flowing metaphors)",
     "Surreal and Dream-like (where the environment is constantly shifting)",
     "Energetic and Humorous (with lots of funny observations and dialogue)",
-    "Cinematic and Suspenseful (building anticipation with vivid descriptions)"
+    "Cinematic and Suspenseful (building anticipation with vivid descriptions)",
+    "Narnian Allegory (in the whimsical, descriptive, and moral style of C.S. Lewis)"
 ]
 
 SUB_GENRES = [
