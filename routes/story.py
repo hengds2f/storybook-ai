@@ -6,8 +6,7 @@ from services.storage import (
     save_story, get_stories_for_profile, get_story_by_id,
     delete_story, get_profile_by_id
 )
-from services.image_service import generate_image, PAINT_POOL
-from services.hf_utils import check_token_status
+from services.image_service import generate_image, generate_image_with_audit
 
 story_bp = Blueprint("story", __name__)
 
@@ -174,7 +173,7 @@ def download_pdf(story_id):
         return jsonify({"error": "Could not generate PDF"}), 500
 
 
-from services.image_service import generate_image, generate_image_with_audit
+
 
 
 @story_bp.route("/api/test-paint")
@@ -210,23 +209,19 @@ def test_paint():
 
 @story_bp.route("/api/ai-status")
 def ai_status():
-    """Diagnostic endpoint to check AI configuration."""
+    """Diagnostic endpoint to check Gemini configuration."""
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
     
-    # Run the new token validity check
-    hf_status = check_token_status()
+    gemini_key = os.environ.get("GOOGLE_API_KEY")
     data_dir = os.path.join("static", "generated_images")
     
     status = {
-        "token_valid": hf_status.get("valid", False),
-        "token_user": hf_status.get("username", "Unknown"),
-        "token_error": hf_status.get("reason", ""),
+        "gemini_key_present": bool(gemini_key),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_image_model": PAINT_POOL[0],
-        "paint_pool_size": len(PAINT_POOL),
-        "paint_pool_models": PAINT_POOL
+        "primary_engine": "Google Gemini 1.5",
+        "image_engine": "Imagen 3"
     }
     
     return jsonify(status), 200
