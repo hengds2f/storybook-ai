@@ -43,11 +43,22 @@ def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
     return _demo_story(params)
 
 
+def count_words(text: str) -> int:
+    """Accurately count words in a story string."""
+    if not text:
+        return 0
+    import re
+    # Remove headers and scene tags to count only narrative words
+    clean_text = re.sub(r'##\s*.*?\n|\[SCENE:.*?\]', '', text, flags=re.DOTALL)
+    return len(clean_text.split())
+
+
 def generate_story_sequentially(params: dict) -> str:
     """
-    Generate a 1000-word story in two sequential parts (Acts).
+    Generate a 1000-word story in two acts with length enforcement.
     Part 1: Intro + Challenge
-    Part 2: Resolution + Moral (using Part 1 as context)
+    Part 2: Resolution + Moral
+    If the total is < 1000, triggers expansion calls for short acts.
     """
     from services.story_builder import build_act_prompt, set_seeds
     
@@ -55,16 +66,60 @@ def generate_story_sequentially(params: dict) -> str:
     
     # PART 1: Intro and Challenge (~500 words)
     prompt1 = build_act_prompt(params, act_number=1, seeds=seeds)
-    print("[LLM] Generating Part 1 (Intro/Challenge)...")
+    print(f"[LLM] Generating Act 1 (Intro/Challenge)...")
     act1_content = generate_story(prompt1, params, max_tokens=1500)
     
     # PART 2: Resolution and Moral (~500 words)
     prompt2 = build_act_prompt(params, act_number=2, act1_content=act1_content, seeds=seeds)
-    print("[LLM] Generating Part 2 (Resolution/Moral)...")
+    print(f"[LLM] Generating Act 2 (Resolution/Moral)...")
     act2_content = generate_story(prompt2, params, max_tokens=1500)
     
-    # Assemble final text
+    # Check total word count and expand if necessary
+    max_retries = 3
+    for attempt in range(max_retries):
+        total_words = count_words(act1_content) + count_words(act2_content)
+        print(f"[LENGTH CHECK] Total Word Count: {total_words} / 1000 (Attempt {attempt+1})")
+        
+        if total_words >= 1000:
+            break
+            
+        print(f"[RECURSIVE] Story too short. Triggering expansion...")
+        
+        # Decide which act needs expansion (or both)
+        if count_words(act1_content) < 500:
+            act1_content = expand_content(act1_content, params, section_type="Beginning", seeds=seeds)
+        
+        # Still too short? Expand Act 2
+        if (count_words(act1_content) + count_words(act2_content)) < 1000:
+            act2_content = expand_content(act2_content, params, section_type="Ending", seeds=seeds)
+            
     return f"{act1_content}\n\n{act2_content}"
+
+
+def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> str:
+    """Instruct the AI to lengthen existing content with sensory detail."""
+    current_count = count_words(text)
+    print(f"[EXPAND] Expanding {section_type} (Current: {current_count} words)...")
+    
+    expansion_prompt = f"""You are a master of DESCRIPTIVE EXPANSION.
+    The following {section_type} of our story is only {current_count} words long. I need it shortened? NO. I need it LONGER.
+    
+    TASK: Rewrite the following text but make it TWICE AS LONG (at least 500 words).
+    
+    RULES:
+    - Include 3 new paragraphs of SENSORY details (smell, feel, sound).
+    - Add deep INTERNAL MONOLOGUE for the characters.
+    - Describe the atmosphere and environment in exquisite detail.
+    - KEEP THE PLOT THE SAME. Just ELABORATE.
+    - Maintain headers (##) and scene tags ([SCENE:]).
+    
+    ORIGINAL TEXT:
+    {text}
+    
+    Begin rewriting and expanding now (Target: 500+ words):"""
+    
+    expanded_text = generate_story(expansion_prompt, params, max_tokens=1500)
+    return expanded_text if count_words(expanded_text) > current_count else text
 
 
 def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
