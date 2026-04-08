@@ -218,10 +218,12 @@ def ai_status():
     
     status = {
         "gemini_key_present": bool(gemini_key),
+        "openai_key_present": bool(os.environ.get("OPENAI_API_KEY")),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_engine": "Google Gemini 1.5",
-        "image_engine": "Imagen 3"
+        "primary_engine": "Google Gemini 1.5 (Standard + Pro for finale)",
+        "image_engine": "OpenAI DALL-E 3",
+        "narrative_uniqueness": "Active (Entropy Seeds + Persistent Taboos)"
     }
     
     return jsonify(status), 200

@@ -43,7 +43,8 @@ def set_seeds(params: dict) -> dict:
         "style": random.choice(NARRATIVE_STYLES),
         "genre": random.choice(SUB_GENRES),
         "spark": random.choice(PLOT_SPARKS),
-        "atm": random.choice(ATMOSPHERES)
+        "atm": random.choice(ATMOSPHERES),
+        "taboos": get_random_taboos()
     }
 
 
@@ -189,7 +190,7 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
         "ACT_5: The Complication",
         "ACT_6: The Climax",
         "ACT_7: The Resolution",
-        "ACT_8: Aftermath & Final Moral"
+        "ACT_8: THE_MANDATORY_POEM"
     ]
 
     title = act_titles[act_number - 1]
@@ -212,7 +213,7 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     - Write NEW CONTENT ONLY. Do NOT repeat, summarize, or rephrase any previous acts.
     - EVERY character listed above MUST appear in this segment — give each character dialogue, action, or internal thought.
     - Focus exclusively on adding new dialogue, internal monologue, and environmental details.
-    - NARRATIVE TABOOS (Do NOT use or mention these tropes/items): {get_random_taboos()}
+    - NARRATIVE TABOOS (STRICTLY FORBIDDEN): {s['taboos']}
 
     SPECIFIC INSTRUCTIONS FOR {title}:
     """
@@ -232,8 +233,10 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     elif act_number == 7:
         prompt += f"The climax resolves. How do {names_str} each react to the resolution? Focus on the {theme} theme and show each character's personal growth."
     elif act_number == 8:
-        prompt += f"A peaceful closing scene in {setting}. Reflect on what {names_str} each learned. \n\n"
-        prompt += "CRITICAL FINAL TASK: You MUST conclude this story with a 4-8 line RHYMING POEM that conveys the overall moral of the story for {names_str}. The poem should be beautiful and feel like a classic children's verse."
+        prompt += f"A peaceful closing scene in {setting}. \n"
+        prompt += "MANDATORY FINAL TASK: You MUST write a 6-8 line RHYMING POEM that conveys the overall moral of the story. \n"
+        prompt += "The poem is the most important part of this response. Ensure it rhymes perfectly and feels like a classic children's verse. \n"
+        prompt += f"Reflect on what {names_str} each learned through the poem."
 
     if previous_content:
         # Pass the last segment for continuity

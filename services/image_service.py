@@ -4,9 +4,14 @@ import requests
 from PIL import Image
 import io
 from openai import OpenAI
+from dotenv import load_dotenv
 
-# Directory for storing generated images
-GENERATED_IMAGE_DIR = os.path.join("static", "generated_images")
+# Ensure environment variables are loaded
+load_dotenv()
+
+# Absolute path for storing generated images to avoid CWD issues
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+GENERATED_IMAGE_DIR = os.path.join(BASE_DIR, "static", "generated_images")
 
 
 def generate_image(description: str, story_params: dict) -> str | None:
@@ -25,8 +30,13 @@ def generate_image_with_audit(description: str, story_params: dict) -> tuple[str
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         msg = "OPENAI_API_KEY is not set."
+        print(f"[IMAGE] ERROR: {msg}")
         audit_logs.append({"model": "System", "status": "ERROR", "message": msg})
         return None, audit_logs
+    
+    # Masked log for debugging
+    masked_key = f"{api_key[:5]}...{api_key[-4:]}" if len(api_key) > 10 else "***"
+    print(f"[IMAGE] Using OpenAI Key: {masked_key}")
 
     # Initialize OpenAI Client
     client = OpenAI(api_key=api_key)

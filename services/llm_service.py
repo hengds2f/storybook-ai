@@ -60,8 +60,11 @@ def generate_story_8act(params: dict) -> str:
         "ACT_5: The Complication",
         "ACT_6: The Climax",
         "ACT_7: The Resolution",
-        "ACT_8: Aftermath & Final Moral"
+        "ACT_8: THE_MANDATORY_POEM"
     ]
+
+    import uuid
+    story_seed = uuid.uuid4().hex[:8] 
 
     for i in range(1, 9):
         print(f"[LLM] Generating {act_titles[i-1]} (Act {i}/8)...")
@@ -70,8 +73,12 @@ def generate_story_8act(params: dict) -> str:
         context = full_story[-2000:] if full_story else None
         prompt = build_8act_prompts(params, act_number=i, previous_content=context, seeds=seeds)
         
-        # Generate the act (Target ~150-200 words)
-        act_text = generate_story(prompt, params, max_tokens=600)
+        # Inject uniqueness token to break model repetition
+        prompt = f"[UNIQUE_STORY_SEED: {story_seed}]\n{prompt}"
+
+        # Upgrade Act 8 to Pro for strict instruction following (poetry)
+        model_to_use = "gemini-1.5-pro" if i == 8 else GEMINI_MODEL
+        act_text = _call_gemini_api(model_to_use, prompt, max_tokens=600)
         
         if not act_text:
             print(f"  -> {act_titles[i-1]} failed. Returning overall fallback.")
@@ -123,7 +130,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     
     model = genai.GenerativeModel(
         model_name=model_name,
-        system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your stories are segmented into 8 acts. The FINAL act (Act 8) must ALWAYS conclude with a beautiful, 4-8 line rhyming poem that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. You NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
+        system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
     )
     
     # Maximize creativity parameters for variety
