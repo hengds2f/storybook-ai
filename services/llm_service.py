@@ -54,7 +54,7 @@ def _call_hf_api(model: str, prompt: str, max_tokens: int) -> str | None:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a warm, imaginative children's story writer. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
+                "content": "You are a master storyteller for children. Your stories are FAMOUS for being UNPREDICTABLE and having a SHOCKING SURPRISE EFFECT. You NEVER use 'puzzle-solving' as a resolution. You NEVER repeat a plot. You NEVER use 'Clockwork Trains' or 'Golden Cogs'. Your stories are vibrant, creative, and completely original."
             },
             {
                 "role": "user",
@@ -123,15 +123,15 @@ The air in {setting} was {atm}. In the middle of this {gen} world, {main_char} a
 
 ## Challenge
 
-But things grew even more complicated. {arch} Every way they turned, {twist} The path forward was blocked by a puzzle that only {theme} could solve.
+But things grew even more complicated. {arch} Every way they turned, {twist} The world of {setting} seemed to be reacting to their very thoughts, creating a scenario that no one could have predicted.
 
-[SCENE: {main_char} and {friend_text} working together to overcome a difficult obstacle in the {gen} landscape]
+[SCENE: {main_char} and {friend_text} in the middle of a surreal, shifting landscape where {spark} is changing everything]
 
 ## Resolution
 
-Finally, by focusing on {theme}, they found the answer. It wasn't an easy victory, but it was earned. The world of {setting} began to glow with a new light, and the {gen} mystery was solved forever.
+Finally, instead of a predictable solution, a moment of pure {style} transformed the situation. By embracing the {atm} energy of {setting}, they didn't just solve the problem—they redefined it. It was a {twist} that left even the stars of {setting} blinking in surprise.
 
-[SCENE: The characters celebrating their victory as the {atm} world of {setting} transforms around them]
+[SCENE: A spectacular transformation of {setting}, where {main_char} and {friend_text} are surrounded by the {gen} magic of their discovery]
 
 ## Moral
 

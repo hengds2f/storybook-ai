@@ -13,7 +13,10 @@ PLOT_ARCHETYPES = [
     "The gravity of the world suddenly changes or stops working for a few minutes.",
     "The scenery starts to change colors based on the characters' mood.",
     "A hidden portal opens inside an everyday object (like a shoe or a bowl).",
-    "Characters find a way to talk to inanimate objects like stones or trees."
+    "Characters find a way to talk to inanimate objects like stones or trees.",
+    "A parade of clouds decides to land on the ground for a day.",
+    "The shadows of the characters start living their own lives and playing pranks.",
+    "A character wakes up to find their house has moved to a completely new location overnight."
 ]
 
 SURPRISE_TWISTS = [
@@ -24,7 +27,10 @@ SURPRISE_TWISTS = [
     "The journey's destination leads back to where things started, but with a new perspective.",
     "A small, everyday object is revealed to have a grand, hidden importance.",
     "The 'problem' was actually a celebration they were invited to all along.",
-    "A character discovers they had the power they needed inside them from the very beginning."
+    "A character discovers they had the power they needed inside them from the very beginning.",
+    "The conflict is resolved not by winning, but by changing the rules entirely.",
+    "An unexpected gift from a secondary character becomes the turning point.",
+    "The characters realize the challenge was a misunderstood message from the world itself."
 ]
 
 NARRATIVE_STYLES = [
@@ -34,7 +40,8 @@ NARRATIVE_STYLES = [
     "Fast-paced and Exciting (focusing on action and quick developments)",
     "Wonder-filled and Lyrical (using beautiful, flowing metaphors)",
     "Surreal and Dream-like (where the environment is constantly shifting)",
-    "Energetic and Humorous (with lots of funny observations and dialogue)"
+    "Energetic and Humorous (with lots of funny observations and dialogue)",
+    "Cinematic and Suspenseful (building anticipation with vivid descriptions)"
 ]
 
 SUB_GENRES = [
@@ -45,7 +52,9 @@ SUB_GENRES = [
     "Modern-Day Urban Fantasy",
     "Art-Deco Submarine Expedition",
     "High-Stakes Culinary Contest",
-    "Cybernetic Nature Fable"
+    "Cybernetic Nature Fable",
+    "Crystal-Punk Sky Adventure",
+    "Interdimensional Library Exploration"
 ]
 
 PLOT_SPARKS = [
@@ -60,7 +69,9 @@ PLOT_SPARKS = [
     "A character finds a way to paint with starlight.",
     "The wind carries messages from long-lost friends.",
     "Books in this land read themselves aloud to you.",
-    "The stars fall from the sky and turn into glowing pebbles."
+    "The stars fall from the sky and turn into glowing pebbles.",
+    "A character discovers they can talk to the colors in the air.",
+    "The rain consists of tiny, floating musical notes."
 ]
 
 ATMOSPHERES = [
@@ -71,7 +82,8 @@ ATMOSPHERES = [
     "Dreamy and Ethereal",
     "Cozy and Whimsical",
     "Silvery and Silent",
-    "Vibrant and Chaotic"
+    "Vibrant and Chaotic",
+    "Neon and Luminous"
 ]
 
 # Narrative Taboos — Never use these items!
@@ -80,5 +92,7 @@ TABOO_ITEMS = [
     "Golden Cog",
     "Giant Leaf",
     "Lost Baby Animal",
-    "Whispering Woods"
+    "Whispering Woods",
+    "Puzzle-solving ending",
+    "Predictable solution"
 ]

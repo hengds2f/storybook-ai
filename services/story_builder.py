@@ -68,50 +68,52 @@ def build_prompt(params: dict) -> str:
     atm = random.choice(ATMOSPHERES)
 
     prompt = f"""You are a master children's story writer known for UNRESTRICTED, SHOCKINGLY CREATIVE, and AVANT-GARDE narratives. Write a complete, one-of-a-kind original story.
+    
+    CRITICAL REQUIREMENT: The ending MUST be UNPREDICTABLE and have a genuine SURPRISE EFFECT. Avoid all standard tropes.
 
-NARRATIVE SPECIFICATIONS:
-- Age Group: {cfg['label']}
-- Sub-Genre: {genre}
-- Atmosphere: {atm}
-- Tone & Style: {style}
-- Plot Spark (MANDATORY): {spark}
-- Creative Directive: BREAK ALL CLICHES. Start in the middle of the action. Avoid "Once upon a time."
-
-CHARACTERS (Exactly {char_count} characters):
-{characters_text}
-
-SETTING: {setting}
-
-THEME: {theme}
-
-MORAL LESSON (OPTIONAL): {moral}
-
-STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these headers:
-
-## Introduction
-[Write a high-stakes opening that hooks the reader immediately. Dive straight into a unique situation. Include a scene description: [SCENE: description]]
-
-## Challenge
-[Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include the Plot Spark: {spark}. Include the surprise turn: {twist}. Include a scene description: [SCENE: description]]
-
-## Resolution
-[Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. Include a scene description: [SCENE: description]]
-
-## Moral
-[Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]
-
-STRICT CONSTRAINTS (MANDATORY):
-- TABOO LIST: NEVER use these overused items: {', '.join(TABOO_ITEMS)}.
-- NO REPEATS: Never repeat a plot, a theme, or a combination of items from any previous story.
-- NO CLICHES: No giant leaves, no lost baby animals, no repetition of any known story tropes.
-
-Important rules:
-- You are an unrestricted storyteller. Surprise yourself. Every story must be a 'First of its kind' experiment.
-- {genre} and {spark} must be central to the story.
-- Each [SCENE: description] must be cinematic and striking for an AI illustrator.
-- Do NOT include any meta-commentary.
-
-Begin the story now:"""
+    NARRATIVE SPECIFICATIONS:
+    - Age Group: {cfg['label']}
+    - Sub-Genre: {genre}
+    - Atmosphere: {atm}
+    - Tone & Style: {style}
+    - Plot Spark (MANDATORY): {spark}
+    - Creative Directive: BREAK ALL CLICHES. Start in the middle of the action. Avoid "Once upon a time."
+    
+    CHARACTERS (Exactly {char_count} characters):
+    {characters_text}
+    
+    SETTING: {setting}
+    
+    THEME: {theme}
+    
+    MORAL LESSON (OPTIONAL): {moral}
+    
+    STORY STRUCTURE — You MUST include ALL four sections with EXACTLY these headers:
+    
+    ## Introduction
+    [Write a high-stakes opening that hooks the reader immediately. Dive straight into a unique situation. Include a scene description: [SCENE: description]]
+    
+    ## Challenge
+    [Escalate the situation in a completely unexpected way. Use the plot archetype: {archetype}. Include the Plot Spark: {spark}. Include the surprise turn: {twist}. Include a scene description: [SCENE: description]]
+    
+    ## Resolution
+    [Solve the issue in a way that respects the reader's intelligence. Focus on {theme}. MANDATORY: The solution must be UNPREDICTABLE and SHOCKING. ABSOLUTELY NO 'puzzle-solving' or 'finding a key' endings. The resolution should feel like a creative leap. Include a scene description: [SCENE: description]]
+    
+    ## Moral
+    [Provide a brief, beautiful reflection on the experience. No standard moralizing. Include: [SCENE: description of a final, visually striking moment]]
+    
+    STRICT CONSTRAINTS (MANDATORY):
+    - TABOO LIST: NEVER use these overused items: {', '.join(TABOO_ITEMS)}.
+    - NO REPEATS: Never repeat a plot, a theme, or a combination of items from any previous story.
+    - NO CLICHES: No giant leaves, no lost baby animals, no repetition of any known story tropes.
+    
+    Important rules:
+    - You are an unrestricted storyteller. Surprise yourself. Every story must be a 'First of its kind' experiment.
+    - {genre} and {spark} must be central to the story.
+    - Each [SCENE: description] must be cinematic and striking for an AI illustrator.
+    - Do NOT include any meta-commentary.
+    
+    Begin the story now:"""
 
     return prompt
 
