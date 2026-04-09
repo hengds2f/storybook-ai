@@ -110,7 +110,13 @@ def generate_story_8act(params: dict, task_id: str = None) -> str:
             attempts += 1
         
         if not act_text:
-            error_msg = f"Act {i} ({act_titles[i-1]}) failed after {max_attempts} attempts."
+            print(f"[LLM] Gemini failed for Act {i}. Attempting Hugging Face Tertiary Fallback...")
+            if task_id:
+                update_story_task(task_id, status="generating", status_message=f"Gemini exhausted. Using Hugging Face for Act {i}...")
+            act_text = _call_hf_api(prompt, max_tokens=800)
+            
+        if not act_text:
+            error_msg = f"Act {i} ({act_titles[i-1]}) failed on all AI engines."
             print(f"  -> {error_msg} Returning overall fallback.")
             # We DON'T overwrite if persistence already has a specific API error
             existing_error = get_last_error()
@@ -288,7 +294,43 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str
     return None
 
 
-
+def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
+    """Tertiary fallback using Hugging Face text generation logic."""
+    from huggingface_hub import InferenceClient
+    
+    api_key = config.HF_API_KEY
+    if not api_key:
+        _set_last_error("HF_TOKEN missing for text fallback.")
+        return None
+        
+    try:
+        client = InferenceClient(token=api_key)
+        system_instruction = "You are a master storyteller for children. Your stories are segmented into 8 acts. IMPORTANT: Act 8 MUST conclude with a 4-8 line RHYMING POEM."
+        
+        messages = [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt}
+        ]
+        
+        print(f"[LLM] Calling Hugging Face Fallback ({config.HF_TEXT_MODEL})...")
+        response = client.chat_completion(
+            model=config.HF_TEXT_MODEL,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=0.9
+        )
+        
+        if response.choices and response.choices[0].message.content:
+            text = response.choices[0].message.content.strip()
+            print(f"[LLM] Success with HF {config.HF_TEXT_MODEL}")
+            return text
+            
+    except Exception as e:
+        err = f"HF Fallback Error: {str(e)}"
+        print(f"[LLM] {err}")
+        _set_last_error(err)
+        
+    return None
 
 # Initialization check
 if not os.path.exists(ERROR_LOG_PATH):
