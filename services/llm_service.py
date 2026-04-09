@@ -1,4 +1,6 @@
 import os
+import re
+import time
 import config
 from services.story_pools import (
     PLOT_ARCHETYPES, SURPRISE_TWISTS, NARRATIVE_STYLES, 
@@ -116,9 +118,8 @@ def generate_story_8act(params: dict) -> str:
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
         print(f"  -> {act_titles[i-1]} completed.")
         
-        # Free-tier rate limit padding
-        import time
-        time.sleep(2)
+        # Proactive Free-tier rate limit padding
+        time.sleep(4)
 
     return full_story
 
@@ -212,29 +213,42 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             
             try:
                 print(f"[LLM] Trying {api_version} with {model_path}...")
-                response = requests.post(url, json=payload, timeout=30)
                 
-                if response.status_code == 200:
-                    res_data = response.json()
-                    if "candidates" in res_data and res_data["candidates"]:
-                        candidate = res_data["candidates"][0]
-                        if "content" in candidate and "parts" in candidate["content"]:
-                            text = candidate["content"]["parts"][0]["text"].strip()
-                            print(f"[LLM] Success with {model_path} on {api_version}")
-                            return text
+                # Internal retry for 429 Quota issues
+                max_429_retries = 2
+                for retry_attempt in range(max_429_retries):
+                    response = requests.post(url, json=payload, timeout=30)
                     
-                    reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
-                    _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
-                else:
-                    err_msg = f"API Error ({response.status_code}) on {api_version}/{model_path}: {response.text[:500]}"
-                    print(f"[LLM] {err_msg}")
-                    # We only record the first failure if it's not a 404/429
-                    if response.status_code not in [404, 429]:
+                    if response.status_code == 200:
+                        res_data = response.json()
+                        if "candidates" in res_data and res_data["candidates"]:
+                            candidate = res_data["candidates"][0]
+                            if "content" in candidate and "parts" in candidate["content"]:
+                                text = candidate["content"]["parts"][0]["text"].strip()
+                                print(f"[LLM] Success with {model_path} on {api_version}")
+                                return text
+                        
+                        reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
+                        _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
+                        break # Not a quota issue, break internal retry
+                    
+                    elif response.status_code == 429:
+                        # Extract wait time from message
+                        wait_match = re.search(r"retry in (\d+\.?\d*)s", response.text)
+                        wait_seconds = float(wait_match.group(1)) + 1.0 if wait_match else 10.0
+                        
+                        print(f"[LLM] 429 Quota Exceeded on {model_path}. Sleeping {wait_seconds}s before retry {retry_attempt+1}/{max_429_retries}...")
+                        _set_last_error(f"QUOTA_WAITING ({wait_seconds}s): {model_path}")
+                        time.sleep(wait_seconds)
+                        continue # Loop and try the exact same model again
+                    
+                    else:
+                        err_msg = f"API Error ({response.status_code}) on {api_version}/{model_path}: {response.text[:500]}"
+                        print(f"[LLM] {err_msg}")
+                        # Record and continue to next alias/version
                         _set_last_error(err_msg)
                         if response.status_code in [401, 403]: return None
-                    else:
-                        # For 404/429, we still want to see the last one if all fail
-                        _set_last_error(err_msg)
+                        break # Go to next alias/version
                         
             except Exception as e:
                 _set_last_error(f"Network Exception: {str(e)}")
