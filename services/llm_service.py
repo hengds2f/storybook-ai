@@ -236,6 +236,17 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str
                         break # Not a quota issue, break internal retry
                     
                     elif response.status_code == 429:
+                        res_text = response.text
+                        if "limit: 0" in res_text:
+                            print(f"[LLM] Model {model_path} is disabled (limit: 0). Skipping...")
+                            _set_last_error(f"MODEL_DISABLED: {model_path}")
+                            break # Go to next alias/version
+                            
+                        if retry_attempt == max_429_retries - 1:
+                            print(f"[LLM] Hard Quota block on {model_path}")
+                            _set_last_error(f"HARD_QUOTA_REACHED: {model_path}")
+                            return None # Hard stop for this request
+                            
                         msg_prefix = f"Waiting for Quota... "
                         wait_seconds = 10.0
                         
