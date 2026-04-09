@@ -121,7 +121,7 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
     """
     ULTIMATE RELIABILITY: Make a direct REST API call to Gemini.
-    This bypasses all SDK/library issues and offers the most stable connection.
+    Uses Stable v1 endpoint with automatic version/alias fallback.
     """
     import requests
     import json
@@ -132,57 +132,62 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         LAST_NARRATIVE_ERROR = "GEMINI_API_KEY is missing."
         return None
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    # Standard models often need the -latest suffix for some account types
+    model_aliases = [model_name]
+    if "-latest" not in model_name:
+        model_aliases.append(f"{model_name}-latest")
     
-    # System instruction embedded in the role-based content for maximum stability
-    system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. NEVER use the '#' symbol."
-    
-    payload = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": f"INSTRUCTIONS: {system_instruction}\n\nREQUEST: {prompt}"}]
+    # Try multiple API versions and aliases
+    for api_version in ["v1", "v1beta"]:
+        for model_alias in model_aliases:
+            url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_alias}:generateContent?key={api_key}"
+            
+            system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. NEVER use the '#' symbol."
+            
+            payload = {
+                "contents": [{"role": "user", "parts": [{"text": f"INSTRUCTIONS: {system_instruction}\n\nREQUEST: {prompt}"}]}],
+                "generationConfig": {"temperature": 1.0, "maxOutputTokens": max_tokens},
+                "safetySettings": [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+                ]
             }
-        ],
-        "generationConfig": {
-            "temperature": 1.0,
-            "topP": 0.95,
-            "maxOutputTokens": max_tokens
-        },
-        "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
-        ]
-    }
-    
-    try:
-        print(f"[LLM] Direct API Call: {model_name}...")
-        response = requests.post(url, json=payload, timeout=30)
-        res_data = response.json()
-        
-        if response.status_code == 200:
-            if "candidates" in res_data and res_data["candidates"]:
-                candidate = res_data["candidates"][0]
-                if "content" in candidate and "parts" in candidate["content"]:
-                    text = candidate["content"]["parts"][0]["text"].strip()
-                    print(f"[LLM] Success with {model_name}")
-                    return text
             
-            # If we are here, it was likely a safety block
-            reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
-            LAST_NARRATIVE_ERROR = f"Gemini Blocked: {reason}"
-            print(f"[LLM] {LAST_NARRATIVE_ERROR}")
-        else:
-            error_data = res_data.get("error", {})
-            msg = error_data.get("message", "Unknown API error")
-            LAST_NARRATIVE_ERROR = f"API Error ({response.status_code}): {msg}"
-            print(f"[LLM] {LAST_NARRATIVE_ERROR}")
-            
-    except Exception as e:
-        LAST_NARRATIVE_ERROR = f"Network Exception: {str(e)}"
-        print(f"[LLM] {LAST_NARRATIVE_ERROR}")
+            try:
+                print(f"[LLM] Trying {api_version} with {model_alias}...")
+                response = requests.post(url, json=payload, timeout=30)
+                res_data = response.json()
+                
+                if response.status_code == 200:
+                    if "candidates" in res_data and res_data["candidates"]:
+                        candidate = res_data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            text = candidate["content"]["parts"][0]["text"].strip()
+                            print(f"[LLM] Success with {model_alias} on {api_version}")
+                            return text
+                    
+                    reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
+                    LAST_NARRATIVE_ERROR = f"Gemini Blocked ({model_alias}): {reason}"
+                elif response.status_code == 404:
+                    # Continue to next alias/version
+                    print(f"[LLM] 404 for {model_alias} on {api_version}")
+                    LAST_NARRATIVE_ERROR = f"API Error (404): {model_alias} not found on {api_version}"
+                    continue
+                else:
+                    error_data = res_data.get("error", {})
+                    msg = error_data.get("message", "Unknown API error")
+                    LAST_NARRATIVE_ERROR = f"API Error ({response.status_code}): {msg}"
+                    print(f"[LLM] {LAST_NARRATIVE_ERROR}")
+                    # If it's a quota or auth error, don't bother retrying models
+                    if response.status_code in [401, 403, 429]:
+                        return None
+                        
+            except Exception as e:
+                LAST_NARRATIVE_ERROR = f"Network Exception: {str(e)}"
+                print(f"[LLM] {LAST_NARRATIVE_ERROR}")
+                return None
         
     return None
 
