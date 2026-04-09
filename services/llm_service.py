@@ -308,7 +308,7 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
         
     try:
         model = config.HF_TEXT_MODEL
-        url = f"https://api-inference.huggingface.co/models/{model}"
+        url = f"https://router.huggingface.co/hf-inference/models/{model}"
         headers = {"Authorization": f"Bearer {api_key}"}
         
         system_instruction = "You are a master storyteller. Your task is to write a vividly descriptive creative story segment. IMPORTANT: If this is Act 8, you MUST end the response with a 4-8 line RHYMING POEM."
