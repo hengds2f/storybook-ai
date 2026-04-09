@@ -308,20 +308,19 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
         
     try:
         model = config.HF_TEXT_MODEL
-        url = f"https://router.huggingface.co/hf-inference/models/{model}"
-        headers = {"Authorization": f"Bearer {api_key}"}
+        url = "https://router.huggingface.co/hf-inference/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         
         system_instruction = "You are a master storyteller. Your task is to write a vividly descriptive creative story segment. IMPORTANT: If this is Act 8, you MUST end the response with a 4-8 line RHYMING POEM."
         
-        full_prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{system_instruction}<|eot_id|><|start_header_id|>user<|end_header_id|>\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
-        
         payload = {
-            "inputs": full_prompt,
-            "parameters": {
-                "max_new_tokens": max_tokens, 
-                "temperature": 0.8, 
-                "return_full_text": False
-            }
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.8
         }
         
         print(f"[LLM] Calling HF API ({model})...")
@@ -329,12 +328,8 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
         
         if response.status_code == 200:
             res_data = response.json()
-            if isinstance(res_data, list) and "generated_text" in res_data[0]:
-                text = res_data[0]["generated_text"].strip()
-                # Ensure marker gets correctly placed if HF forgets
-                if "ACT_8" in prompt and "POEM" in text.upper() == False:
-                    # In case it missed the poem constraint entirely
-                    pass 
+            if "choices" in res_data and res_data["choices"]:
+                text = res_data["choices"][0]["message"]["content"].strip()
                 print(f"[LLM] Success with HF {model}")
                 return text
         else:
