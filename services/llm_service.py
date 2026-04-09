@@ -161,7 +161,7 @@ def _discovery_gemini_models(api_key: str) -> list:
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
     """
     ULTIMATE RELIABILITY: Make a direct REST API call to Gemini.
-    Uses Stable v1 endpoint with version/alias fallback AND auto-discovery.
+    With Auto-Healing: Automatically falls back to discovered models if config fails.
     """
     import requests
     import json
@@ -171,22 +171,33 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         _set_last_error("GEMINI_API_KEY is missing.")
         return None
         
-    # Priority aliases based on user discovery
+    # Start with standard aliases
     model_aliases = [model_name]
     if "-latest" not in model_name:
         model_aliases.append(f"{model_name}-latest")
-    # Force injection of 2.0-flash as it was discovered on this account
-    if "gemini-2.0-flash" not in model_aliases:
-        model_aliases.append("gemini-2.0-flash")
+        
+    # AUTO-HEALING: If we previously discovered models, prioritize them
+    discovery_log = get_last_error()
+    if discovery_log and "Model Discovery Found:" in discovery_log:
+        discovered_str = discovery_log.split("Model Discovery Found:")[1].strip()
+        discovered_list = [m.strip() for m in discovered_str.split(",")]
+        # Prioritize these as they are proven to exist on this account
+        for d_model in discovered_list:
+            if d_model not in model_aliases:
+                model_aliases.append(d_model)
     
     # Try multiple API versions and aliases
-    for api_version in ["v1", "v1beta"]:
+    for api_version in ["v1beta", "v1"]:
         for m_alias in model_aliases:
-            # NORMALIZATION: Ensure model starts with 'models/' and URL doesn't double it
-            model_path = m_alias if m_alias.startswith("models/") else f"models/{m_alias}"
+            # NORMALIZATION: Ensure model starts with 'models/' and handle full paths correctly
+            if m_alias.startswith("models/"):
+                model_path = m_alias
+            else:
+                model_path = f"models/{m_alias}"
+                
             url = f"https://generativelanguage.googleapis.com/{api_version}/{model_path}:generateContent?key={api_key}"
             
-            system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral."
+            system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: Act 8 MUST conclude with a 4-8 line RHYMING POEM."
             
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": f"INSTRUCTIONS: {system_instruction}\n\nREQUEST: {prompt}"}]}],
@@ -216,30 +227,26 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                     _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
                 elif response.status_code == 404:
                     print(f"[LLM] 404 for {model_path} on {api_version}")
-                    _set_last_error(f"API Error (404): {model_path} not found.")
+                    continue
+                elif response.status_code == 429:
+                    print(f"[LLM] 429 (Quota) for {model_path}. Trying next...")
                     continue
                 else:
                     error_data = res_data.get("error", {})
                     msg = error_data.get("message", "Unknown API error")
                     _set_last_error(f"API Error ({response.status_code}): {msg}")
-                    print(f"[LLM] {get_last_error()}")
                     if response.status_code in [401, 403]: return None
-                    if response.status_code == 429:
-                        print(f"[LLM] Quota exceeded for {model_path}. Retrying next available model...")
-                        # We don't return None here, we let the loop try the next alias
-                        continue
                         
             except Exception as e:
                 _set_last_error(f"Network Exception: {str(e)}")
                 return None
         
-    # If we reached here, ALL standard attempts failed with 404
-    print("[LLM] All standard models failed. Attempting Discovery...")
+    # Final Fallback to Discovery if all attempts failed
+    print("[LLM] All attempts failed. Refreshing Discovery...")
     available_models = _discovery_gemini_models(api_key)
     if available_models:
         model_list_str = ", ".join(available_models)
         _set_last_error(f"Model Discovery Found: {model_list_str}")
-        print(f"[LLM] {get_last_error()}")
     
     return None
 
