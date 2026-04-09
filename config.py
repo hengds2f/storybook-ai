@@ -1,15 +1,17 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables using absolute path to ensure accuracy
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.join(BASE_DIR, ".env")
+load_dotenv(dotenv_path=dotenv_path)
 
 # --- AI Engine Selection ---
 # Set the primary engine for story narrative generation
-TEXT_GEN_ENGINE = "google-gemini"
+TEXT_GEN_ENGINE = os.environ.get("TEXT_GEN_ENGINE", "google-gemini")
 
 # Set the primary engine for image generation
-IMAGE_GEN_ENGINE = "openai-dalle"
+IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "openai-dalle")
 
 # --- Google Gemini Configuration ---
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")

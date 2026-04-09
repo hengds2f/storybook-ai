@@ -231,8 +231,8 @@ def ai_status():
     data_dir = os.path.join("static", "generated_images")
     
     status = {
-        "gemini_key_present": bool(config.GEMINI_API_KEY),
-        "openai_key_present": bool(config.OPENAI_API_KEY),
+        "gemini_key_present": bool(config.GEMINI_API_KEY or os.environ.get("GOOGLE_API_KEY")),
+        "openai_key_present": bool(config.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
         "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.GEMINI_MODEL_STANDARD} + PRO finale)",

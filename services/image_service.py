@@ -24,16 +24,18 @@ def generate_image_with_audit(description: str, story_params: dict) -> tuple[str
     """
     audit_logs = []
     
-    if not config.OPENAI_API_KEY:
-        msg = "OPENAI_API_KEY is not set in config."
-        print(f"[IMAGE] ERROR: {msg}")
+    # Robust API key retrieval
+    api_key = config.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")
+    
+    if not api_key:
+        msg = "OPENAI_API_KEY is missing (checked config and os.environ)."
+        print(f"[IMAGE] CRITICAL ERROR: {msg}")
         audit_logs.append({"model": "System", "status": "ERROR", "message": msg})
         return None, audit_logs
     
     # Masked log for debugging
-    api_key = config.OPENAI_API_KEY
-    masked_key = f"{api_key[:5]}...{api_key[-4:]}" if len(api_key) > 10 else "***"
-    print(f"[IMAGE] Using OpenAI Key: {masked_key}")
+    masked_key = f"{api_key[:5]}...{api_key[-4:]}" if len(api_key) > 8 else "***"
+    print(f"[IMAGE] Initializing OpenAI with key: {masked_key}")
 
     # Initialize OpenAI Client
     client = OpenAI(api_key=api_key)
