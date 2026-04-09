@@ -85,8 +85,10 @@ def generate_story_8act(params: dict) -> str:
         if not act_text:
             error_msg = f"Act {i} ({act_titles[i-1]}) failed after {max_attempts} attempts."
             print(f"  -> {error_msg} Returning overall fallback.")
-            global LAST_NARRATIVE_ERROR
-            LAST_NARRATIVE_ERROR = f"ENGINE_FAILURE: {error_msg}"
+            # We DON'T overwrite if LAST_NARRATIVE_ERROR already has a specific API error
+            if not LAST_NARRATIVE_ERROR or "ENGINE_FAILURE" in LAST_NARRATIVE_ERROR:
+                global LAST_NARRATIVE_ERROR
+                LAST_NARRATIVE_ERROR = f"ENGINE_FAILURE: {error_msg}"
             return _demo_story(params)
         
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
