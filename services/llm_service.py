@@ -235,8 +235,9 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str
                         _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
                         break # Not a quota issue, break internal retry
                     
+                    elif response.status_code == 429:
                         msg_prefix = f"Waiting for Quota... "
-                        wait_seconds = float(wait_match.group(1)) + 1.0 if wait_match else 10.0
+                        wait_seconds = 10.0
                         
                         print(f"[LLM] 429 Quota Exceeded on {model_path}. {msg_prefix} {wait_seconds}s")
                         _set_last_error(f"QUOTA_WAITING ({wait_seconds}s): {model_path}")
@@ -332,7 +333,12 @@ The climax was a blur of action and intense emotion. With hearts full of {theme}
 As the light stabilized, a new resolution emerged. The world of {setting} took on a soft, golden glow, a reflection of the peace that {names_str} had found. The challenge hadn't shifted them; it had refined them, turning their initial curiosity into a lasting wisdom that would stay with them long after they left this magical place.
 
 [[{s8}]]
-The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {names_str} stood as beacons of {theme}, heroes who didn't just survive an adventure, but helped a world find its soul once again. And that, I think, is the best kind of adventure there is.
+The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {names_str} stood as beacons of {theme}, heroes who didn't just survive an adventure, but helped a world find its soul once again. 
+
+Though the journey now is done,
+Our heroes shining like the sun,
+The magic stays within the heart,
+For every ending is a start.
 
 [SCENE: {names_str} standing triumphantly in the heart of {setting}, surrounded by the peaceful, glowing energy of their discovery, looking like kings and queens of an ancient realm.]
 """
