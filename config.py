@@ -8,11 +8,10 @@ load_dotenv(dotenv_path=dotenv_path)
 
 # --- AI Engine Selection ---
 # Set the primary engine for story narrative generation
-# FORCED: Switching to Gemini because OpenAI is over quota
 TEXT_GEN_ENGINE = "google-gemini"
 
 # Set the primary engine for image generation
-IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "huggingface")
+IMAGE_GEN_ENGINE = "huggingface"
 
 # --- Google Gemini Configuration ---
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -22,17 +21,6 @@ GEMINI_MODEL_PRO = "gemini-pro-latest"
 # --- Hugging Face Configuration ---
 HF_API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
 HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
-
-# --- OpenAI Configuration ---
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o")
-OPENAI_IMAGE_MODEL = "dall-e-3"
-IMAGE_SIZE = "1024x1024"
-IMAGE_QUALITY = "standard"
-
-def get_openai_key():
-    """Live key retrieval to bypass module caching issues."""
-    return os.environ.get("OPENAI_API_KEY") or OPENAI_API_KEY
 
 def get_gemini_key():
     return os.environ.get("GOOGLE_API_KEY") or GEMINI_API_KEY

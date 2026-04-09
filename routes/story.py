@@ -205,7 +205,7 @@ def test_narrative():
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
     
-    from services.llm_service import _call_openai_api, _call_gemini_api, LAST_NARRATIVE_ERROR
+    from services.llm_service import _call_gemini_api
     
     prompt = "Write a short 3-sentence intro about a brave squirrel. Use whimsical language."
     model = request.args.get("model", "auto")
@@ -214,10 +214,8 @@ def test_narrative():
     
     if model == "pro" or (model == "auto" and config.TEXT_GEN_ENGINE == "google-gemini"):
         result = _call_gemini_api(config.GEMINI_MODEL_PRO, prompt, max_tokens=100)
-    elif model == "flash":
-        result = _call_gemini_api(config.GEMINI_MODEL_STANDARD, prompt, max_tokens=100)
     else:
-        result = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=100)
+        result = _call_gemini_api(config.GEMINI_MODEL_STANDARD, prompt, max_tokens=100)
     
     from services import llm_service
     if result:
@@ -252,14 +250,12 @@ def ai_status():
     status = {
         "gemini_key_present": bool(config.get_gemini_key()),
         "gemini_prefix": get_prefix(config.get_gemini_key()),
-        "openai_key_present": bool(config.get_openai_key()),
-        "openai_prefix": get_prefix(config.get_openai_key()),
         "hf_token_present": bool(config.HF_API_KEY),
         "hf_prefix": get_prefix(config.HF_API_KEY),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL}, Act 8: {config.GEMINI_MODEL_PRO if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL})",
-        "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
+        "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD}, Act 8: {config.GEMINI_MODEL_PRO})",
+        "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL})",
         "last_narrative_error": llm_service.get_last_error(),
         "debug_view": "/api/debug-view"
     }

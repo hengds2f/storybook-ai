@@ -103,12 +103,9 @@ def generate_story_8act(params: dict, task_id: str = None) -> str:
             if attempts > 0:
                 print(f"  -> Retry attempt {attempts} for {act_titles[i-1]}...")
                 
-            if config.TEXT_GEN_ENGINE == "openai":
-                act_text = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=800)
-            else:
-                # DEFAULT TO PRO for Act 8, but FALLBACK to Flash if it fails
-                model_to_use = config.GEMINI_MODEL_PRO if (i == 8 and attempts == 0) else config.GEMINI_MODEL_STANDARD
-                act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800, task_id=task_id)
+            # DEFAULT TO PRO for Act 8, but FALLBACK to Flash if it fails
+            model_to_use = config.GEMINI_MODEL_PRO if (i == 8 and attempts == 0) else config.GEMINI_MODEL_STANDARD
+            act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800, task_id=task_id)
             
             attempts += 1
         
@@ -238,18 +235,23 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str
                         _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
                         break # Not a quota issue, break internal retry
                     
-                    elif response.status_code == 429:
-                        # Extract wait time from message
-                        wait_match = re.search(r"retry in (\d+\.?\d*)s", response.text)
+                        msg_prefix = f"Waiting for Quota... "
                         wait_seconds = float(wait_match.group(1)) + 1.0 if wait_match else 10.0
                         
-                        msg = f"Waiting ({wait_seconds}s) for Quota..."
-                        print(f"[LLM] 429 Quota Exceeded on {model_path}. {msg}")
-                        if task_id:
-                            update_story_task(task_id, status="waiting_for_quota", status_message=msg)
-                            
+                        print(f"[LLM] 429 Quota Exceeded on {model_path}. {msg_prefix} {wait_seconds}s")
                         _set_last_error(f"QUOTA_WAITING ({wait_seconds}s): {model_path}")
-                        time.sleep(wait_seconds)
+                        
+                        # Interactive countdown for better UX
+                        start_wait = int(wait_seconds)
+                        for remaining in range(start_wait, 0, -1):
+                            if task_id:
+                                update_story_task(task_id, status="waiting_for_quota", 
+                                                 status_message=f"{msg_prefix} {remaining}s")
+                            time.sleep(1)
+                        
+                        if task_id:
+                            update_story_task(task_id, status="generating", status_message="Quota cleared! Resuming...")
+                        
                         continue # Loop and try the exact same model again
                     
                     else:
@@ -274,44 +276,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str
     return None
 
 
-def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the actual API call to OpenAI with robust key retrieval and detailed error logging."""
-    from openai import OpenAI
-    
-    api_key = config.get_openai_key()
-    if not api_key:
-        print("[LLM] ERROR: OPENAI_API_KEY is missing.")
-        return None
-        
-    try:
-        client = OpenAI(api_key=api_key)
-        
-        system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
-        
-        print(f"[LLM] Calling OpenAI {model_name}...")
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=1.0,
-            max_tokens=max_tokens,
-            top_p=0.99
-        )
-        
-        if response.choices and response.choices[0].message.content:
-            content = response.choices[0].message.content.strip()
-            print(f"[LLM] Success with OpenAI {model_name}")
-            return content
-            
-    except Exception as e:
-        # Detailed error reporting for the diagnostic UI
-        error_msg = f"{type(e).__name__}: {str(e)}"
-        print(f"[LLM] OpenAI Fatal Error: {error_msg}")
-        _set_last_error(error_msg)
-        
-    return None
+
 
 # Initialization check
 if not os.path.exists(ERROR_LOG_PATH):
