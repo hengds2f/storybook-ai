@@ -118,10 +118,24 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
     return expanded_text if count_words(expanded_text) > current_count else text
 
 
+def _discovery_gemini_models(api_key: str) -> list:
+    """Query Google for all available models on this key."""
+    import requests
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return [m.get("name", "unknown") for m in data.get("models", [])]
+    except Exception as e:
+        print(f"[DISCOVERY_FAIL] {e}")
+    return []
+
+
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
     """
     ULTIMATE RELIABILITY: Make a direct REST API call to Gemini.
-    Uses Stable v1 endpoint with automatic version/alias fallback.
+    Uses Stable v1 endpoint with version/alias fallback AND auto-discovery.
     """
     import requests
     import json
@@ -132,7 +146,6 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         LAST_NARRATIVE_ERROR = "GEMINI_API_KEY is missing."
         return None
         
-    # Standard models often need the -latest suffix for some account types
     model_aliases = [model_name]
     if "-latest" not in model_name:
         model_aliases.append(f"{model_name}-latest")
@@ -142,7 +155,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         for model_alias in model_aliases:
             url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_alias}:generateContent?key={api_key}"
             
-            system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. NEVER use the '#' symbol."
+            system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral."
             
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": f"INSTRUCTIONS: {system_instruction}\n\nREQUEST: {prompt}"}]}],
@@ -171,24 +184,28 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                     reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
                     LAST_NARRATIVE_ERROR = f"Gemini Blocked ({model_alias}): {reason}"
                 elif response.status_code == 404:
-                    # Continue to next alias/version
                     print(f"[LLM] 404 for {model_alias} on {api_version}")
-                    LAST_NARRATIVE_ERROR = f"API Error (404): {model_alias} not found on {api_version}"
+                    LAST_NARRATIVE_ERROR = f"API Error (404): {model_alias} not found."
                     continue
                 else:
                     error_data = res_data.get("error", {})
                     msg = error_data.get("message", "Unknown API error")
                     LAST_NARRATIVE_ERROR = f"API Error ({response.status_code}): {msg}"
                     print(f"[LLM] {LAST_NARRATIVE_ERROR}")
-                    # If it's a quota or auth error, don't bother retrying models
-                    if response.status_code in [401, 403, 429]:
-                        return None
+                    if response.status_code in [401, 403, 429]: return None
                         
             except Exception as e:
                 LAST_NARRATIVE_ERROR = f"Network Exception: {str(e)}"
-                print(f"[LLM] {LAST_NARRATIVE_ERROR}")
                 return None
         
+    # If we reached here, ALL standard attempts failed with 404
+    print("[LLM] All standard models failed. Attempting Discovery...")
+    available_models = _discovery_gemini_models(api_key)
+    if available_models:
+        model_list_str = ", ".join(available_models)
+        LAST_NARRATIVE_ERROR = f"Model Discovery Found: {model_list_str}"
+        print(f"[LLM] {LAST_NARRATIVE_ERROR}")
+    
     return None
 
 
