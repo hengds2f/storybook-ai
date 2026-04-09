@@ -56,6 +56,8 @@ def init_db():
             FOREIGN KEY (profile_id) REFERENCES profiles(id),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
+    """)
+
     # Story Generation Tasks (for Background processing)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS story_tasks (
