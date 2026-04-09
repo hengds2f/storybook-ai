@@ -43,6 +43,8 @@ def process_story_generation(task_id: str, app: Flask):
             sections = content.get("sections", [])
             total_sections = len(sections)
             for idx, section in enumerate(sections):
+                if section.get("title") == "Poem":
+                    continue # Do not generate illustrations for poems as AI text rendering is illegible
                 scene_desc = section.get("scene_description")
                 if scene_desc:
                     progress = 85 + int((idx / total_sections) * 10)

@@ -336,7 +336,7 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
                     poem_payload = {
                         "model": model,
                         "messages": [
-                            {"role": "user", "content": "Write a 4-line rhyming children's poem to conclude the story. IMPORTANT: Output ONLY the poem. Use double line breaks (\\n\\n) between every single line so it renders correctly in Markdown."}
+                            {"role": "user", "content": "Write a 4-line rhyming children's poem to conclude the story. IMPORTANT: Output ONLY the poem."}
                         ],
                         "max_tokens": 150,
                         "temperature": 0.9

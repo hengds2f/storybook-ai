@@ -17,7 +17,8 @@ const Reader = (() => {
     'Introduction': ['🌅', '📖', '🌟'],
     'Challenge': ['⚡', '🌊', '🎭'],
     'Resolution': ['🌈', '✨', '🏆'],
-    'Moral': ['💫', '🌙', '💡']
+    'Moral': ['💫', '🌙', '💡'],
+    'Poem': ['📜', '🎵', '✨']
   };
 
   // ── Init ───────────────────────────────────────────────────────────────
@@ -101,10 +102,18 @@ const Reader = (() => {
     sectionsEl.innerHTML = sections.map((section, idx) => {
       const icons = CHAPTER_ICONS[section.title] || ['📖'];
       const icon = icons[idx % icons.length];
-      const paragraphs = (section.content || '').split('\n\n')
-        .filter(p => p.trim().length > 0)
-        .map(p => `<p>${App.escapeHtml(p.trim())}</p>`)
-        .join('');
+      let contentHtml = '';
+      if (section.title === 'Poem') {
+        const lines = (section.content || '').split('\n').filter(l => l.trim().length > 0);
+        contentHtml = `<div class="poem-format" style="text-align: center; font-style: italic; font-size: 1.25rem; line-height: 1.8; margin: 3rem 0; color: var(--text-primary); font-family: 'Merriweather', serif;">` +
+                      lines.map(l => `${App.escapeHtml(l.trim())}<br>`).join('') +
+                      `</div>`;
+      } else {
+        contentHtml = (section.content || '').split('\n\n')
+          .filter(p => p.trim().length > 0)
+          .map(p => `<p>${App.escapeHtml(p.trim())}</p>`)
+          .join('');
+      }
 
       return `
         <div class="chapter-break" id="chapter-${idx}">
@@ -120,14 +129,14 @@ const Reader = (() => {
             <script>console.warn("Illustration missing for chapter: ${App.escapeHtml(section.title)}");</script>
           `}
 
-          ${section.scene_description ? `
+          ${section.scene_description && section.title !== 'Poem' ? `
             <div class="scene-description">
               🎨 ${App.escapeHtml(section.scene_description)}
             </div>
           ` : ''}
         </div>
         <div class="story-content-block" id="sectionContent-${idx}">
-          ${paragraphs}
+          ${contentHtml}
         </div>
       `;
     }).join('');
