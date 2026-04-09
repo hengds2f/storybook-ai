@@ -93,6 +93,10 @@ def generate_story_8act(params: dict) -> str:
         
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
         print(f"  -> {act_titles[i-1]} completed.")
+        
+        # Free-tier rate limit padding
+        import time
+        time.sleep(2)
 
     return full_story
 
@@ -192,7 +196,11 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                     msg = error_data.get("message", "Unknown API error")
                     LAST_NARRATIVE_ERROR = f"API Error ({response.status_code}): {msg}"
                     print(f"[LLM] {LAST_NARRATIVE_ERROR}")
-                    if response.status_code in [401, 403, 429]: return None
+                    if response.status_code in [401, 403]: return None
+                    if response.status_code == 429:
+                        print(f"[LLM] Quota exceeded for {model_alias}. Retrying next available model...")
+                        # We don't return None here, we let the loop try the next alias
+                        continue
                         
             except Exception as e:
                 LAST_NARRATIVE_ERROR = f"Network Exception: {str(e)}"
