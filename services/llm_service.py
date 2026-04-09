@@ -197,9 +197,6 @@ def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
 LAST_NARRATIVE_ERROR = None
 
 
-    return None
-
-
 def _demo_story(params: dict) -> str:
     """
     Return a High-Quality, Non-Repeating 1000-word fallback story.
