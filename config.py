@@ -21,7 +21,7 @@ GEMINI_MODEL_PRO = "gemini-pro-latest"
 # --- Hugging Face Configuration ---
 HF_API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
 HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
-HF_TEXT_MODEL = os.environ.get("HF_TEXT_MODEL", "meta-llama/Llama-3.2-3B-Instruct")
+HF_TEXT_MODEL = os.environ.get("HF_TEXT_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
 
 def get_gemini_key():
     return os.environ.get("GOOGLE_API_KEY") or GEMINI_API_KEY
