@@ -171,14 +171,20 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         _set_last_error("GEMINI_API_KEY is missing.")
         return None
         
+    # Priority aliases based on user discovery
     model_aliases = [model_name]
     if "-latest" not in model_name:
         model_aliases.append(f"{model_name}-latest")
+    # Force injection of 2.0-flash as it was discovered on this account
+    if "gemini-2.0-flash" not in model_aliases:
+        model_aliases.append("gemini-2.0-flash")
     
     # Try multiple API versions and aliases
     for api_version in ["v1", "v1beta"]:
-        for model_alias in model_aliases:
-            url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_alias}:generateContent?key={api_key}"
+        for m_alias in model_aliases:
+            # NORMALIZATION: Ensure model starts with 'models/' and URL doesn't double it
+            model_path = m_alias if m_alias.startswith("models/") else f"models/{m_alias}"
+            url = f"https://generativelanguage.googleapis.com/{api_version}/{model_path}:generateContent?key={api_key}"
             
             system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral."
             
@@ -194,7 +200,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             }
             
             try:
-                print(f"[LLM] Trying {api_version} with {model_alias}...")
+                print(f"[LLM] Trying {api_version} with {model_path}...")
                 response = requests.post(url, json=payload, timeout=30)
                 res_data = response.json()
                 
@@ -203,14 +209,14 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                         candidate = res_data["candidates"][0]
                         if "content" in candidate and "parts" in candidate["content"]:
                             text = candidate["content"]["parts"][0]["text"].strip()
-                            print(f"[LLM] Success with {model_alias} on {api_version}")
+                            print(f"[LLM] Success with {model_path} on {api_version}")
                             return text
                     
                     reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
-                    _set_last_error(f"Gemini Blocked ({model_alias}): {reason}")
+                    _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
                 elif response.status_code == 404:
-                    print(f"[LLM] 404 for {model_alias} on {api_version}")
-                    _set_last_error(f"API Error (404): {model_alias} not found.")
+                    print(f"[LLM] 404 for {model_path} on {api_version}")
+                    _set_last_error(f"API Error (404): {model_path} not found.")
                     continue
                 else:
                     error_data = res_data.get("error", {})
@@ -219,7 +225,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                     print(f"[LLM] {get_last_error()}")
                     if response.status_code in [401, 403]: return None
                     if response.status_code == 429:
-                        print(f"[LLM] Quota exceeded for {model_alias}. Retrying next available model...")
+                        print(f"[LLM] Quota exceeded for {model_path}. Retrying next available model...")
                         # We don't return None here, we let the loop try the next alias
                         continue
                         
