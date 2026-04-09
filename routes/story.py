@@ -236,7 +236,7 @@ def ai_status():
         "hf_token_present": bool(config.HF_API_KEY),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.GEMINI_MODEL_STANDARD} + PRO finale)",
+        "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.OPENAI_TEXT_MODEL if config.TEXT_GEN_ENGINE == 'openai' else config.GEMINI_MODEL_STANDARD})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
         "narrative_uniqueness": "Active (Entropy Seeds + Persistent Taboos)"
     }

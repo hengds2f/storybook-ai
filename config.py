@@ -8,7 +8,7 @@ load_dotenv(dotenv_path=dotenv_path)
 
 # --- AI Engine Selection ---
 # Set the primary engine for story narrative generation
-TEXT_GEN_ENGINE = os.environ.get("TEXT_GEN_ENGINE", "google-gemini")
+TEXT_GEN_ENGINE = os.environ.get("TEXT_GEN_ENGINE", "openai")
 
 # Set the primary engine for image generation
 IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "huggingface")
@@ -26,6 +26,7 @@ HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schn
 
 # --- OpenAI Configuration ---
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o")
 OPENAI_IMAGE_MODEL = "dall-e-3"
 IMAGE_SIZE = "1024x1024"
 IMAGE_QUALITY = "standard"

@@ -38,6 +38,7 @@ def generate_story_8act(params: dict) -> str:
     """
     The 8-Act Narrative Engine.
     Performs 8 sequential API calls to guarantee long-form narrative quality.
+    Supports switching between Google Gemini and OpenAI.
     """
     from services.story_builder import build_8act_prompts, set_seeds
     
@@ -59,7 +60,7 @@ def generate_story_8act(params: dict) -> str:
     story_seed = uuid.uuid4().hex[:8] 
 
     for i in range(1, 9):
-        print(f"[LLM] Generating {act_titles[i-1]} (Act {i}/8)...")
+        print(f"[LLM] Generating {act_titles[i-1]} (Act {i}/8) using {config.TEXT_GEN_ENGINE}...")
         
         # Pass the accumulated story for continuity (last 2000 chars is enough)
         context = full_story[-2000:] if full_story else None
@@ -68,10 +69,13 @@ def generate_story_8act(params: dict) -> str:
         # Inject uniqueness token to break model repetition
         prompt = f"[UNIQUE_STORY_SEED: {story_seed}]\n{prompt}"
 
-        # Upgrade Act 8 to Pro for strict instruction following (poetry)
-        # Upgrade Act 8 to Pro for strict instruction following (poetry)
-        model_to_use = config.GEMINI_MODEL_PRO if i == config.ACT_COUNT else config.GEMINI_MODEL_STANDARD
-        act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
+        # Logic for model selection based on current engine
+        if config.TEXT_GEN_ENGINE == "openai":
+            act_text = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=800)
+        else:
+            # Gemini logic with Act 8 Pro upgrade
+            model_to_use = config.GEMINI_MODEL_PRO if i == config.ACT_COUNT else config.GEMINI_MODEL_STANDARD
+            act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
         
         if not act_text:
             print(f"  -> {act_titles[i-1]} failed. Returning overall fallback.")
@@ -144,6 +148,38 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             
     except Exception as e:
         print(f"[LLM] Gemini Error: {e}")
+        
+    return None
+
+
+def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
+    """Make the actual API call to OpenAI."""
+    from openai import OpenAI
+    
+    if not config.OPENAI_API_KEY:
+        return None
+        
+    try:
+        client = OpenAI(api_key=config.OPENAI_API_KEY)
+        
+        system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
+        
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=1.0,
+            max_tokens=max_tokens,
+            top_p=0.99
+        )
+        
+        if response.choices and response.choices[0].message.content:
+            return response.choices[0].message.content.strip()
+            
+    except Exception as e:
+        print(f"[LLM] OpenAI Error: {e}")
         
     return None
 
