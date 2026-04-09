@@ -273,7 +273,8 @@ def ai_status():
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
         "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL}, Act 8: {config.GEMINI_MODEL_PRO if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
-        "last_narrative_error": LAST_NARRATIVE_ERROR
+        "last_narrative_error": LAST_NARRATIVE_ERROR,
+        "debug_log_link": "/static/gemini_debug.txt"
     }
     
     return jsonify(status), 200

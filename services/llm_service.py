@@ -116,23 +116,39 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
     return expanded_text if count_words(expanded_text) > current_count else text
 
 
+def _log_gemini_debug(message: str):
+    """Write debug logs to a public file for diagnostic visibility."""
+    import datetime
+    try:
+        log_path = os.path.join("static", "gemini_debug.txt")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(log_path, "a") as f:
+            f.write(f"[{timestamp}] {message}\n")
+    except Exception as e:
+        print(f"[DEBUG_LOG_FAIL] {e}")
+
+
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the actual API call to Google Gemini with relaxed safety filters and deep inspection."""
+    """Make the API call with simplified prompt and deep file-based debug logging."""
     from google import genai
     from google.genai import types
     global LAST_NARRATIVE_ERROR
     
     api_key = config.get_gemini_key()
     if not api_key:
-        print("[LLM] ERROR: GEMINI_API_KEY is missing.")
+        error = "GEMINI_API_KEY is missing."
+        _log_gemini_debug(f"FATAL: {error}")
+        LAST_NARRATIVE_ERROR = error
         return None
         
     try:
         client = genai.Client(api_key=api_key)
         
+        # Move system instructions into the main prompt to avoid 'system_instruction' config blocks
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
-        # BLOCK_ONLY_HIGH is the most permissive setting available to all key types
+        full_prompt = f"SYSTEM_INSTRUCTIONS:\n{system_instruction}\n\nUSER_REQUEST:\n{prompt}"
+        
         safety_settings = [
             types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
             types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
@@ -143,16 +159,15 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         generate_config = types.GenerateContentConfig(
             temperature=1.0,
             top_p=0.99,
-            top_k=50,
             max_output_tokens=max_tokens,
-            system_instruction=system_instruction,
             safety_settings=safety_settings
         )
         
-        print(f"[LLM] Calling Gemini {model_name}...")
+        _log_gemini_debug(f"CALLING: {model_name} (Prompt: {prompt[:50]}...)")
+        
         response = client.models.generate_content(
             model=model_name,
-            contents=prompt,
+            contents=full_prompt,
             config=generate_config
         )
         
@@ -161,27 +176,29 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             parts = response.candidates[0].content.parts
             if parts and parts[0].text:
                 content = parts[0].text.strip()
-                print(f"[LLM] Success with Gemini {model_name}")
+                _log_gemini_debug(f"SUCCESS: {model_name} (Length: {len(content)} chars)")
                 return content
         
-        # If no text, inspect for block reasons
+        # Log failure reason explicitly to the debug file
         if response and response.candidates:
             finish_reason = response.candidates[0].finish_reason
-            error_msg = f"Gemini ({model_name}) Failed: FinishReason.{finish_reason.name}"
-            
-            # Record safety violations specifically
+            error_msg = f"FAILED: FinishReason.{finish_reason.name}"
             if finish_reason.name == "SAFETY":
                 ratings = [f"{r.category}: {r.probability}" for r in response.candidates[0].safety_ratings]
                 error_msg += f" (Ratings: {', '.join(ratings)})"
             
-            print(f"[LLM] {error_msg}")
+            _log_gemini_debug(error_msg)
             LAST_NARRATIVE_ERROR = error_msg
         else:
-            LAST_NARRATIVE_ERROR = f"Gemini ({model_name}) Empty Response: No candidates returned."
+            error = "EMPTY_RESPONSE: No candidates returned from SDK."
+            _log_gemini_debug(error)
+            LAST_NARRATIVE_ERROR = error
             
     except Exception as e:
-        error_msg = f"Gemini ({model_name}) Error: {type(e).__name__} - {str(e)}"
-        print(f"[LLM] {error_msg}")
+        import traceback
+        error_msg = f"EXCEPTION: {type(e).__name__} - {str(e)}"
+        _log_gemini_debug(error_msg)
+        _log_gemini_debug(traceback.format_exc())
         LAST_NARRATIVE_ERROR = error_msg
         
     return None
