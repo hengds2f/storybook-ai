@@ -128,12 +128,12 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
-        # Relaxed safety filters to prevent over-zealous blocking of children's stories
+        # BLOCK_ONLY_HIGH is the most permissive setting available to all key types
         safety_settings = [
-            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
-            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
-            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
-            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE")
+            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
+            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
+            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_ONLY_HIGH"),
+            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH")
         ]
         
         generate_config = types.GenerateContentConfig(
@@ -152,25 +152,31 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             config=generate_config
         )
         
-        # Inspect for success
-        if response and response.text:
-            print(f"[LLM] Success with Gemini {model_name}")
-            return response.text.strip()
+        # Deep inspection for success
+        if response and response.candidates and response.candidates[0].content:
+            parts = response.candidates[0].content.parts
+            if parts and parts[0].text:
+                content = parts[0].text.strip()
+                print(f"[LLM] Success with Gemini {model_name}")
+                return content
         
-        # If no text, inspect candidates for block reasons
+        # If no text, inspect for block reasons
         if response and response.candidates:
             finish_reason = response.candidates[0].finish_reason
-            error_msg = f"Gemini ({model_name}) Blocked: FinishReason.{finish_reason.name}"
-            # Log specific safety ratings if blocked
+            error_msg = f"Gemini ({model_name}) Failed: FinishReason.{finish_reason.name}"
+            
+            # Record safety violations specifically
             if finish_reason.name == "SAFETY":
                 ratings = [f"{r.category}: {r.probability}" for r in response.candidates[0].safety_ratings]
                 error_msg += f" (Ratings: {', '.join(ratings)})"
             
             print(f"[LLM] {error_msg}")
             LAST_NARRATIVE_ERROR = error_msg
+        else:
+            LAST_NARRATIVE_ERROR = f"Gemini ({model_name}) Empty Response: No candidates returned."
             
     except Exception as e:
-        error_msg = f"Gemini ({model_name}) Fatal: {type(e).__name__} - {str(e)}"
+        error_msg = f"Gemini ({model_name}) Error: {type(e).__name__} - {str(e)}"
         print(f"[LLM] {error_msg}")
         LAST_NARRATIVE_ERROR = error_msg
         
