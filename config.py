@@ -8,7 +8,8 @@ load_dotenv(dotenv_path=dotenv_path)
 
 # --- AI Engine Selection ---
 # Set the primary engine for story narrative generation
-TEXT_GEN_ENGINE = os.environ.get("TEXT_GEN_ENGINE", "google-gemini")
+# FORCED: Switching to Gemini because OpenAI is over quota
+TEXT_GEN_ENGINE = "google-gemini"
 
 # Set the primary engine for image generation
 IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "huggingface")
