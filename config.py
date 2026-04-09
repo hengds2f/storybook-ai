@@ -11,12 +11,18 @@ load_dotenv(dotenv_path=dotenv_path)
 TEXT_GEN_ENGINE = os.environ.get("TEXT_GEN_ENGINE", "google-gemini")
 
 # Set the primary engine for image generation
-IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "openai-dalle")
+IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "huggingface")
 
 # --- Google Gemini Configuration ---
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 GEMINI_MODEL_STANDARD = "gemini-1.5-flash"
 GEMINI_MODEL_PRO = "gemini-1.5-pro"
+
+# --- Hugging Face Configuration ---
+# Use HF_TOKEN or HUGGING_FACE_HUB_TOKEN
+HF_API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+# Models: "black-forest-labs/FLUX.1-schnell" or "stabilityai/stable-diffusion-xl-base-1.0"
+HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
 
 # --- OpenAI Configuration ---
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
