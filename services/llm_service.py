@@ -130,6 +130,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
+        print(f"[LLM] Calling Gemini {model_name}...")
         generate_config = types.GenerateContentConfig(
             temperature=1.0,
             top_p=0.99,
@@ -145,10 +146,14 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         )
         
         if response and response.text:
+            print(f"[LLM] Success with Gemini {model_name}")
             return response.text.strip()
             
     except Exception as e:
-        print(f"[LLM] Gemini Error: {type(e).__name__} - {e}")
+        error_msg = f"Gemini ({model_name}): {type(e).__name__} - {str(e)}"
+        print(f"[LLM] {error_msg}")
+        global LAST_NARRATIVE_ERROR
+        LAST_NARRATIVE_ERROR = error_msg
         
     return None
 

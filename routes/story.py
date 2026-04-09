@@ -215,29 +215,36 @@ def test_paint():
 
 @story_bp.route("/api/test-narrative")
 def test_narrative():
-    """Diagnostic endpoint to test a single OpenAI story act with full error reporting."""
+    """Diagnostic endpoint to test a single AI story act with full error reporting."""
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
     
-    from services.llm_service import _call_openai_api, LAST_NARRATIVE_ERROR
+    from services.llm_service import _call_openai_api, _call_gemini_api, LAST_NARRATIVE_ERROR
     
     prompt = "Write a short 3-sentence intro about a brave squirrel. Use whimsical language."
-    print(f"[DIAGNOSTIC] Starting test-narrative...")
+    model = request.args.get("model", "auto")
     
-    result = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=100)
+    print(f"[DIAGNOSTIC] Starting test-narrative (model={model})...")
+    
+    if model == "pro" or (model == "auto" and config.TEXT_GEN_ENGINE == "google-gemini"):
+        result = _call_gemini_api(config.GEMINI_MODEL_PRO, prompt, max_tokens=100)
+    elif model == "flash":
+        result = _call_gemini_api(config.GEMINI_MODEL_STANDARD, prompt, max_tokens=100)
+    else:
+        result = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=100)
     
     if result:
         return jsonify({
             "success": True, 
             "content": result,
-            "message": "Narrative generation successful!"
+            "message": f"Narrative generation successful with {model if model != 'auto' else config.TEXT_GEN_ENGINE}!"
         }), 200
     else:
         return jsonify({
             "success": False, 
             "message": "Narrative generation failed.",
             "error_captured": LAST_NARRATIVE_ERROR,
-            "hint": "Check the error_captured field for the exact reason (e.g. RateLimitError, AuthenticationError)."
+            "hint": "Check the error_captured field for the exact reason."
         }), 500
 
 
@@ -264,7 +271,7 @@ def ai_status():
         "hf_prefix": get_prefix(config.HF_API_KEY),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.OPENAI_TEXT_MODEL if config.TEXT_GEN_ENGINE == 'openai' else config.GEMINI_MODEL_STANDARD})",
+        "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL}, Act 8: {config.GEMINI_MODEL_PRO if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
         "last_narrative_error": LAST_NARRATIVE_ERROR
     }
