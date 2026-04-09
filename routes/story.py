@@ -285,9 +285,9 @@ def debug_view():
     """Returns the raw last error for deep troubleshooting."""
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
-    from services.llm_service import LAST_NARRATIVE_ERROR
+    from services import llm_service
     return jsonify({
-        "last_error": LAST_NARRATIVE_ERROR,
+        "last_error": llm_service.LAST_NARRATIVE_ERROR,
         "engine": config.TEXT_GEN_ENGINE,
         "gemini_model": config.GEMINI_MODEL_STANDARD
     }), 200
