@@ -116,90 +116,71 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
     return expanded_text if count_words(expanded_text) > current_count else text
 
 
-def _log_gemini_debug(message: str):
-    """Write debug logs to a public file for diagnostic visibility."""
-    import datetime
-    try:
-        log_path = os.path.join("static", "gemini_debug.txt")
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(log_path, "a") as f:
-            f.write(f"[{timestamp}] {message}\n")
-    except Exception as e:
-        print(f"[DEBUG_LOG_FAIL] {e}")
-
-
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the API call with simplified prompt and deep file-based debug logging."""
-    from google import genai
-    from google.genai import types
+    """
+    ULTIMATE RELIABILITY: Make a direct REST API call to Gemini.
+    This bypasses all SDK/library issues and offers the most stable connection.
+    """
+    import requests
+    import json
     global LAST_NARRATIVE_ERROR
     
     api_key = config.get_gemini_key()
     if not api_key:
-        error = "GEMINI_API_KEY is missing."
-        _log_gemini_debug(f"FATAL: {error}")
-        LAST_NARRATIVE_ERROR = error
+        LAST_NARRATIVE_ERROR = "GEMINI_API_KEY is missing."
         return None
         
-    try:
-        client = genai.Client(api_key=api_key)
-        
-        # Move system instructions into the main prompt to avoid 'system_instruction' config blocks
-        system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
-        
-        full_prompt = f"SYSTEM_INSTRUCTIONS:\n{system_instruction}\n\nUSER_REQUEST:\n{prompt}"
-        
-        safety_settings = [
-            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
-            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
-            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_ONLY_HIGH"),
-            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    
+    # System instruction embedded in the role-based content for maximum stability
+    system_instruction = "You are a master storyteller for children, writing in the whimsical style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. NEVER use the '#' symbol."
+    
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": f"INSTRUCTIONS: {system_instruction}\n\nREQUEST: {prompt}"}]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 1.0,
+            "topP": 0.95,
+            "maxOutputTokens": max_tokens
+        },
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
         ]
+    }
+    
+    try:
+        print(f"[LLM] Direct API Call: {model_name}...")
+        response = requests.post(url, json=payload, timeout=30)
+        res_data = response.json()
         
-        generate_config = types.GenerateContentConfig(
-            temperature=1.0,
-            top_p=0.99,
-            max_output_tokens=max_tokens,
-            safety_settings=safety_settings
-        )
-        
-        _log_gemini_debug(f"CALLING: {model_name} (Prompt: {prompt[:50]}...)")
-        
-        response = client.models.generate_content(
-            model=model_name,
-            contents=full_prompt,
-            config=generate_config
-        )
-        
-        # Deep inspection for success
-        if response and response.candidates and response.candidates[0].content:
-            parts = response.candidates[0].content.parts
-            if parts and parts[0].text:
-                content = parts[0].text.strip()
-                _log_gemini_debug(f"SUCCESS: {model_name} (Length: {len(content)} chars)")
-                return content
-        
-        # Log failure reason explicitly to the debug file
-        if response and response.candidates:
-            finish_reason = response.candidates[0].finish_reason
-            error_msg = f"FAILED: FinishReason.{finish_reason.name}"
-            if finish_reason.name == "SAFETY":
-                ratings = [f"{r.category}: {r.probability}" for r in response.candidates[0].safety_ratings]
-                error_msg += f" (Ratings: {', '.join(ratings)})"
+        if response.status_code == 200:
+            if "candidates" in res_data and res_data["candidates"]:
+                candidate = res_data["candidates"][0]
+                if "content" in candidate and "parts" in candidate["content"]:
+                    text = candidate["content"]["parts"][0]["text"].strip()
+                    print(f"[LLM] Success with {model_name}")
+                    return text
             
-            _log_gemini_debug(error_msg)
-            LAST_NARRATIVE_ERROR = error_msg
+            # If we are here, it was likely a safety block
+            reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
+            LAST_NARRATIVE_ERROR = f"Gemini Blocked: {reason}"
+            print(f"[LLM] {LAST_NARRATIVE_ERROR}")
         else:
-            error = "EMPTY_RESPONSE: No candidates returned from SDK."
-            _log_gemini_debug(error)
-            LAST_NARRATIVE_ERROR = error
+            error_data = res_data.get("error", {})
+            msg = error_data.get("message", "Unknown API error")
+            LAST_NARRATIVE_ERROR = f"API Error ({response.status_code}): {msg}"
+            print(f"[LLM] {LAST_NARRATIVE_ERROR}")
             
     except Exception as e:
-        import traceback
-        error_msg = f"EXCEPTION: {type(e).__name__} - {str(e)}"
-        _log_gemini_debug(error_msg)
-        _log_gemini_debug(traceback.format_exc())
-        LAST_NARRATIVE_ERROR = error_msg
+        LAST_NARRATIVE_ERROR = f"Network Exception: {str(e)}"
+        print(f"[LLM] {LAST_NARRATIVE_ERROR}")
         
     return None
 

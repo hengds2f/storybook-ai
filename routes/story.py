@@ -274,7 +274,20 @@ def ai_status():
         "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL}, Act 8: {config.GEMINI_MODEL_PRO if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
         "last_narrative_error": LAST_NARRATIVE_ERROR,
-        "debug_log_link": "/static/gemini_debug.txt"
+        "debug_view": "/api/debug-view"
     }
     
     return jsonify(status), 200
+
+
+@story_bp.route("/api/debug-view")
+def debug_view():
+    """Returns the raw last error for deep troubleshooting."""
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    from services.llm_service import LAST_NARRATIVE_ERROR
+    return jsonify({
+        "last_error": LAST_NARRATIVE_ERROR,
+        "engine": config.TEXT_GEN_ENGINE,
+        "gemini_model": config.GEMINI_MODEL_STANDARD
+    }), 200
