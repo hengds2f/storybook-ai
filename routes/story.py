@@ -233,6 +233,7 @@ def test_narrative():
     else:
         result = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=100)
     
+    from services import llm_service
     if result:
         return jsonify({
             "success": True, 
@@ -243,7 +244,7 @@ def test_narrative():
         return jsonify({
             "success": False, 
             "message": "Narrative generation failed.",
-            "error_captured": LAST_NARRATIVE_ERROR,
+            "error_captured": llm_service.get_last_error(),
             "hint": "Check the error_captured field for the exact reason."
         }), 500
 
@@ -260,7 +261,7 @@ def ai_status():
         if not key: return "MISSING"
         return f"{key[:4]}...{key[-4:]}" if len(key) > 8 else "****"
 
-    from services.llm_service import LAST_NARRATIVE_ERROR
+    from services import llm_service
 
     status = {
         "gemini_key_present": bool(config.get_gemini_key()),
@@ -273,7 +274,7 @@ def ai_status():
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
         "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL}, Act 8: {config.GEMINI_MODEL_PRO if 'gemini' in config.TEXT_GEN_ENGINE else config.OPENAI_TEXT_MODEL})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
-        "last_narrative_error": LAST_NARRATIVE_ERROR,
+        "last_narrative_error": llm_service.get_last_error(),
         "debug_view": "/api/debug-view"
     }
     
@@ -287,7 +288,7 @@ def debug_view():
         return jsonify({"error": "Not authenticated"}), 401
     from services import llm_service
     return jsonify({
-        "last_error": llm_service.LAST_NARRATIVE_ERROR,
+        "last_error": llm_service.get_last_error(),
         "engine": config.TEXT_GEN_ENGINE,
         "gemini_model": config.GEMINI_MODEL_STANDARD
     }), 200

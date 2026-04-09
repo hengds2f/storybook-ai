@@ -1,9 +1,31 @@
+import os
 import config
 from services.story_pools import (
     PLOT_ARCHETYPES, SURPRISE_TWISTS, NARRATIVE_STYLES, 
     SUB_GENRES, PLOT_SPARKS, ATMOSPHERES
 )
 from services.story_builder import build_character_descriptions
+
+ERROR_LOG_PATH = "data/last_ai_error.txt"
+
+def _set_last_error(msg: str):
+    """Persist error message to disk for cross-worker visibility."""
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(ERROR_LOG_PATH, "w") as f:
+            f.write(msg)
+    except Exception as e:
+        print(f"[ERROR_LOG_FAIL] {e}")
+
+def get_last_error():
+    """Retrieve the persisted error message."""
+    try:
+        if os.path.exists(ERROR_LOG_PATH):
+            with open(ERROR_LOG_PATH, "r") as f:
+                return f.read().strip()
+    except Exception as e:
+        print(f"[ERROR_READ_FAIL] {e}")
+    return None
 
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
@@ -39,7 +61,6 @@ def generate_story_8act(params: dict) -> str:
     The 8-Act Narrative Engine with automatic retries and engine resilience.
     """
     from services.story_builder import build_8act_prompts, set_seeds
-    global LAST_NARRATIVE_ERROR
     
     seeds = set_seeds(params)
     full_story = ""
@@ -86,9 +107,10 @@ def generate_story_8act(params: dict) -> str:
         if not act_text:
             error_msg = f"Act {i} ({act_titles[i-1]}) failed after {max_attempts} attempts."
             print(f"  -> {error_msg} Returning overall fallback.")
-            # We DON'T overwrite if LAST_NARRATIVE_ERROR already has a specific API error
-            if not LAST_NARRATIVE_ERROR or "ENGINE_FAILURE" in LAST_NARRATIVE_ERROR:
-                LAST_NARRATIVE_ERROR = f"ENGINE_FAILURE: {error_msg}"
+            # We DON'T overwrite if persistence already has a specific API error
+            existing_error = get_last_error()
+            if not existing_error or "ENGINE_FAILURE" in existing_error:
+                _set_last_error(f"ENGINE_FAILURE: {error_msg}")
             return _demo_story(params)
         
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
@@ -143,11 +165,10 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     """
     import requests
     import json
-    global LAST_NARRATIVE_ERROR
     
     api_key = config.get_gemini_key()
     if not api_key:
-        LAST_NARRATIVE_ERROR = "GEMINI_API_KEY is missing."
+        _set_last_error("GEMINI_API_KEY is missing.")
         return None
         
     model_aliases = [model_name]
@@ -186,16 +207,16 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                             return text
                     
                     reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
-                    LAST_NARRATIVE_ERROR = f"Gemini Blocked ({model_alias}): {reason}"
+                    _set_last_error(f"Gemini Blocked ({model_alias}): {reason}")
                 elif response.status_code == 404:
                     print(f"[LLM] 404 for {model_alias} on {api_version}")
-                    LAST_NARRATIVE_ERROR = f"API Error (404): {model_alias} not found."
+                    _set_last_error(f"API Error (404): {model_alias} not found.")
                     continue
                 else:
                     error_data = res_data.get("error", {})
                     msg = error_data.get("message", "Unknown API error")
-                    LAST_NARRATIVE_ERROR = f"API Error ({response.status_code}): {msg}"
-                    print(f"[LLM] {LAST_NARRATIVE_ERROR}")
+                    _set_last_error(f"API Error ({response.status_code}): {msg}")
+                    print(f"[LLM] {get_last_error()}")
                     if response.status_code in [401, 403]: return None
                     if response.status_code == 429:
                         print(f"[LLM] Quota exceeded for {model_alias}. Retrying next available model...")
@@ -203,7 +224,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                         continue
                         
             except Exception as e:
-                LAST_NARRATIVE_ERROR = f"Network Exception: {str(e)}"
+                _set_last_error(f"Network Exception: {str(e)}")
                 return None
         
     # If we reached here, ALL standard attempts failed with 404
@@ -211,8 +232,8 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     available_models = _discovery_gemini_models(api_key)
     if available_models:
         model_list_str = ", ".join(available_models)
-        LAST_NARRATIVE_ERROR = f"Model Discovery Found: {model_list_str}"
-        print(f"[LLM] {LAST_NARRATIVE_ERROR}")
+        _set_last_error(f"Model Discovery Found: {model_list_str}")
+        print(f"[LLM] {get_last_error()}")
     
     return None
 
@@ -220,7 +241,6 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
 def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call to OpenAI with robust key retrieval and detailed error logging."""
     from openai import OpenAI
-    global LAST_NARRATIVE_ERROR
     
     api_key = config.get_openai_key()
     if not api_key:
@@ -253,12 +273,13 @@ def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         # Detailed error reporting for the diagnostic UI
         error_msg = f"{type(e).__name__}: {str(e)}"
         print(f"[LLM] OpenAI Fatal Error: {error_msg}")
-        # We store the last error in a global for the diagnostic endpoint to read
-        LAST_NARRATIVE_ERROR = error_msg
+        _set_last_error(error_msg)
         
     return None
 
-LAST_NARRATIVE_ERROR = None
+# Initialization check
+if not os.path.exists(ERROR_LOG_PATH):
+    _set_last_error("ENGINE_INITIALIZED (No errors yet)")
 
 
 def _demo_story(params: dict) -> str:
