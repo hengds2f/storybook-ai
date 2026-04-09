@@ -39,6 +39,7 @@ def generate_story_8act(params: dict) -> str:
     The 8-Act Narrative Engine with automatic retries and engine resilience.
     """
     from services.story_builder import build_8act_prompts, set_seeds
+    global LAST_NARRATIVE_ERROR
     
     seeds = set_seeds(params)
     full_story = ""
@@ -87,7 +88,6 @@ def generate_story_8act(params: dict) -> str:
             print(f"  -> {error_msg} Returning overall fallback.")
             # We DON'T overwrite if LAST_NARRATIVE_ERROR already has a specific API error
             if not LAST_NARRATIVE_ERROR or "ENGINE_FAILURE" in LAST_NARRATIVE_ERROR:
-                global LAST_NARRATIVE_ERROR
                 LAST_NARRATIVE_ERROR = f"ENGINE_FAILURE: {error_msg}"
             return _demo_story(params)
         
