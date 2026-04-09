@@ -13,24 +13,30 @@ from services.story_pools import (
 AGE_CONFIG = {
     "3-5": {
         "label": "Ages 3–5",
-        "vocabulary": "very simple words, short sentences, lots of repetition",
-        "length": "1000 words",
+        "vocabulary": "Simple verbs/adjectives, rhyming, repetitive phrases, conversational language, clear story structure.",
+        "length": "50-100 words",
         "complexity": "simple and magical, with clear cause-and-effect",
-        "max_tokens": 2000
+        "max_tokens": 500,
+        "per_act_words": "15",
+        "story_word_count": "50-100"
     },
     "6-8": {
         "label": "Ages 6–8",
-        "vocabulary": "simple but varied vocabulary, moderate sentence length",
-        "length": "1000 words",
+        "vocabulary": "More complex sentence structures, introduced descriptive words (adverbs/adjectives), focus on plot/characters.",
+        "length": "100-500 words",
         "complexity": "engaging with a clear problem to solve",
-        "max_tokens": 2000
+        "max_tokens": 800,
+        "per_act_words": "50",
+        "story_word_count": "100-500"
     },
     "9-12": {
         "label": "Ages 9–12",
-        "vocabulary": "richer vocabulary with descriptive language",
-        "length": "1000 words",
+        "vocabulary": "Sophisticated vocabulary, complex themes, developed dialogue, abstract concepts, varied sentence length.",
+        "length": "500-1000 words",
         "complexity": "more nuanced with character development and descriptive scenes",
-        "max_tokens": 2000
+        "max_tokens": 2000,
+        "per_act_words": "100",
+        "story_word_count": "500-1000"
     }
 }
 
@@ -68,13 +74,13 @@ def build_prompt(params: dict, seeds: dict = None) -> str:
 
     prompt = f"""You are a master children's story writer, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis (The Chronicles of Narnia). Your task is to write a complete, one-of-a-kind original story.
     
-    CRITICAL REQUIREMENT: The story MUST be EXACTLY 1000 words long. 
-    Use extreme descriptive detail, sensory world-building (smell, sound, texture), and deep internal monologues to reach the 1000-word goal. 
+    CRITICAL REQUIREMENT: The story MUST be in the word range of {cfg['story_word_count']} words. 
     Do NOT summarize any part of the story. Include a narrator's voice that occasionally addresses the reader directly (e.g., 'Now, you must understand...').
 
     NARRATIVE SPECIFICATIONS:
     - Age Group: {cfg['label']}
-    - Target Length: 1000 words (MANDATORY)
+    - Vocabulary & Sentence Structure: {cfg['vocabulary']}
+    - Target Length: {cfg['length']} (MANDATORY)
     - Sub-Genre: {s['genre']}
     - Atmosphere: {s['atm']}
     - Tone & Style: {s['style']}
@@ -195,9 +201,11 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
 
     title = act_titles[act_number - 1]
 
-    prompt = f"""You are a master children's storyteller, writing with the charm, wisdom, and whimsicality of C.S. Lewis. We are writing a detailed, long-form story (1200+ words) set in a world as magical as Narnia.
+    prompt = f"""You are a master children's storyteller, writing with the charm, wisdom, and whimsicality of C.S. Lewis. We are writing a story with a total length of roughly {cfg['story_word_count']} words set in a world as magical as Narnia.
 
     CONTEXT:
+    - Target Audience: {cfg['label']}
+    - Vocabulary & Styles: {cfg['vocabulary']}
     - Sub-Genre: {s['genre']}
     - Atmosphere: {s['atm']} (Ensure it feels magical, ancient, and wonder-filled)
     - ALL CHARACTERS (every single one MUST appear and speak or act in this segment, behaving with the dignity of heroes or the curiosity of children):
@@ -245,7 +253,7 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
         # Pass the last segment for continuity
         prompt += f"\n\n--- PREVIOUS ACT (FOR CONTEXT ONLY - DO NOT REPEAT THIS IN YOUR RESPONSE) ---\n{previous_content[-1000:]}"
 
-    target_len = "150+ new words" if act_number < 8 else "a short scene followed by a beautiful poem"
+    target_len = f"~{cfg['per_act_words']} new words" if act_number < 8 else "a short scene followed by a beautiful poem"
     prompt += f"\n\nBegin writing [[{title}]] now (Target: {target_len}):"
     return prompt
 
