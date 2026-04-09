@@ -1,4 +1,5 @@
 import os
+import config
 from flask import Blueprint, request, jsonify, session, render_template
 from services.llm_service import generate_story, generate_story_8act, count_words
 from services.story_builder import build_prompt, parse_story, get_age_config
@@ -223,20 +224,19 @@ def test_paint():
 
 @story_bp.route("/api/ai-status")
 def ai_status():
-    """Diagnostic endpoint to check Gemini configuration."""
+    """Diagnostic endpoint to check AI configuration."""
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
     
-    gemini_key = os.environ.get("GOOGLE_API_KEY")
     data_dir = os.path.join("static", "generated_images")
     
     status = {
-        "gemini_key_present": bool(gemini_key),
-        "openai_key_present": bool(os.environ.get("OPENAI_API_KEY")),
+        "gemini_key_present": bool(config.GEMINI_API_KEY),
+        "openai_key_present": bool(config.OPENAI_API_KEY),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_engine": "Google Gemini 1.5 (Standard + Pro for finale)",
-        "image_engine": "OpenAI DALL-E 3",
+        "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.GEMINI_MODEL_STANDARD} + PRO finale)",
+        "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.OPENAI_IMAGE_MODEL})",
         "narrative_uniqueness": "Active (Entropy Seeds + Persistent Taboos)"
     }
     

@@ -3,11 +3,8 @@ import uuid
 import requests
 from PIL import Image
 import io
+import config
 from openai import OpenAI
-from dotenv import load_dotenv
-
-# Ensure environment variables are loaded
-load_dotenv()
 
 # Absolute path for storing generated images to avoid CWD issues
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,14 +24,14 @@ def generate_image_with_audit(description: str, story_params: dict) -> tuple[str
     """
     audit_logs = []
     
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        msg = "OPENAI_API_KEY is not set."
+    if not config.OPENAI_API_KEY:
+        msg = "OPENAI_API_KEY is not set in config."
         print(f"[IMAGE] ERROR: {msg}")
         audit_logs.append({"model": "System", "status": "ERROR", "message": msg})
         return None, audit_logs
     
     # Masked log for debugging
+    api_key = config.OPENAI_API_KEY
     masked_key = f"{api_key[:5]}...{api_key[-4:]}" if len(api_key) > 10 else "***"
     print(f"[IMAGE] Using OpenAI Key: {masked_key}")
 
@@ -54,16 +51,16 @@ def generate_image_with_audit(description: str, story_params: dict) -> tuple[str
     style = "vibrant children's storybook illustration, digital art, highly detailed, soft lighting, whimsical style"
     full_prompt = f"{description}, {setting}, {style}. Ensure all characters are visible and the scene is enchanting."
 
-    log_entry = {"model": "dall-e-3", "status": "PENDING", "message": ""}
+    log_entry = {"model": config.OPENAI_IMAGE_MODEL, "status": "PENDING", "message": ""}
     try:
-        print(f"[IMAGE] OpenAI painting with DALL-E 3...")
+        print(f"[IMAGE] OpenAI painting with {config.OPENAI_IMAGE_MODEL}...")
         
         # Generation call
         response = client.images.generate(
-            model="dall-e-3",
+            model=config.OPENAI_IMAGE_MODEL,
             prompt=full_prompt,
-            size="1024x1024",
-            quality="standard",
+            size=config.IMAGE_SIZE,
+            quality=config.IMAGE_QUALITY,
             n=1,
         )
         

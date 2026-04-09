@@ -1,9 +1,4 @@
-import os
-# Gemini uses its own SDK and environment variables.
-
-# AI Engine Configuration
-GEMINI_MODEL = "gemini-1.5-flash"
-
+import config
 from services.story_pools import (
     PLOT_ARCHETYPES, SURPRISE_TWISTS, NARRATIVE_STYLES, 
     SUB_GENRES, PLOT_SPARKS, ATMOSPHERES
@@ -13,16 +8,14 @@ from services.story_builder import build_character_descriptions
 
 def generate_story(prompt: str, params: dict, max_tokens: int = 3000) -> str:
     """
-    Generate a story EXCLUSIVELY using Google Gemini 1.5.
-    Hugging Face story models have been decommissioned to ensure narrative variety.
+    Generate a story using the configured Google Gemini model.
     """
-    google_key = os.environ.get("GOOGLE_API_KEY")
-    if not google_key:
+    if not config.GEMINI_API_KEY:
         print("[LLM] CRITICAL ERROR: GOOGLE_API_KEY is missing. Story generation aborted.")
         return None
 
     try:
-        result = _call_gemini_api(GEMINI_MODEL, prompt, max_tokens)
+        result = _call_gemini_api(config.GEMINI_MODEL_STANDARD, prompt, max_tokens)
         if result:
             return result
     except Exception as e:
@@ -44,8 +37,7 @@ def count_words(text: str) -> int:
 def generate_story_8act(params: dict) -> str:
     """
     The 8-Act Narrative Engine.
-    Performs 8 sequential API calls (~150 words each) to guarantee 1200+ words.
-    Bypasses the Hugging Face Inference API response token limits.
+    Performs 8 sequential API calls to guarantee long-form narrative quality.
     """
     from services.story_builder import build_8act_prompts, set_seeds
     
@@ -77,7 +69,8 @@ def generate_story_8act(params: dict) -> str:
         prompt = f"[UNIQUE_STORY_SEED: {story_seed}]\n{prompt}"
 
         # Upgrade Act 8 to Pro for strict instruction following (poetry)
-        model_to_use = "gemini-1.5-pro" if i == 8 else GEMINI_MODEL
+        # Upgrade Act 8 to Pro for strict instruction following (poetry)
+        model_to_use = config.GEMINI_MODEL_PRO if i == config.ACT_COUNT else config.GEMINI_MODEL_STANDARD
         act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
         
         if not act_text:
@@ -122,11 +115,10 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     """Make the actual API call to Google Gemini."""
     import google.genai as genai
     
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
+    if not config.GEMINI_API_KEY:
         return None
         
-    genai.configure(api_key=api_key)
+    genai.configure(api_key=config.GEMINI_API_KEY)
     
     model = genai.GenerativeModel(
         model_name=model_name,
