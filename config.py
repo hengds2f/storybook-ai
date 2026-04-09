@@ -16,8 +16,8 @@ IMAGE_GEN_ENGINE = os.environ.get("IMAGE_GEN_ENGINE", "huggingface")
 
 # --- Google Gemini Configuration ---
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL_STANDARD = "gemini-1.5-flash"
-GEMINI_MODEL_PRO = "gemini-1.5-pro"
+GEMINI_MODEL_STANDARD = "gemini-2.0-flash"
+GEMINI_MODEL_PRO = "gemini-pro-latest"
 
 # --- Hugging Face Configuration ---
 HF_API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
