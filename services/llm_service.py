@@ -36,9 +36,7 @@ def count_words(text: str) -> int:
 
 def generate_story_8act(params: dict) -> str:
     """
-    The 8-Act Narrative Engine.
-    Performs 8 sequential API calls to guarantee long-form narrative quality.
-    Supports switching between Google Gemini and OpenAI.
+    The 8-Act Narrative Engine with automatic retries and engine resilience.
     """
     from services.story_builder import build_8act_prompts, set_seeds
     
@@ -62,29 +60,33 @@ def generate_story_8act(params: dict) -> str:
     for i in range(1, 9):
         print(f"[LLM] Generating {act_titles[i-1]} (Act {i}/8) using {config.TEXT_GEN_ENGINE}...")
         
-        # Pass the accumulated story for continuity (last 2000 chars is enough)
+        # Continuity context
         context = full_story[-2000:] if full_story else None
         prompt = build_8act_prompts(params, act_number=i, previous_content=context, seeds=seeds)
-        
-        # Inject uniqueness token to break model repetition
         prompt = f"[UNIQUE_STORY_SEED: {story_seed}]\n{prompt}"
 
-        # Logic for model selection based on current engine
-        if config.TEXT_GEN_ENGINE == "openai":
-            act_text = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=800)
-        else:
-            # Gemini logic with Act 8 Pro upgrade
-            model_to_use = config.GEMINI_MODEL_PRO if i == config.ACT_COUNT else config.GEMINI_MODEL_STANDARD
-            act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
+        act_text = None
+        attempts = 0
+        max_attempts = 2 # Allow one retry for safety/glitch recovery
+        
+        while not act_text and attempts < max_attempts:
+            if attempts > 0:
+                print(f"  -> Retry attempt {attempts} for {act_titles[i-1]}...")
+                
+            if config.TEXT_GEN_ENGINE == "openai":
+                act_text = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=800)
+            else:
+                model_to_use = config.GEMINI_MODEL_PRO if i == config.ACT_COUNT else config.GEMINI_MODEL_STANDARD
+                act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
+            
+            attempts += 1
         
         if not act_text:
-            print(f"  -> {act_titles[i-1]} failed. Returning overall fallback.")
+            print(f"  -> {act_titles[i-1]} failed after {max_attempts} attempts. Returning overall fallback.")
             return _demo_story(params)
         
-        # Append with header for parser (No '#' symbols as requested)
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
-        
-        print(f"  -> {act_titles[i-1]} completed. Current total: {len(full_story.split())} words.")
+        print(f"  -> {act_titles[i-1]} completed.")
 
     return full_story
 
@@ -95,28 +97,23 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
     print(f"[EXPAND] Expanding {section_type} (Current: {current_count} words)...")
     
     expansion_prompt = f"""You are a master of DESCRIPTIVE EXPANSION.
-    The following {section_type} of our story is only {current_count} words long. I need it shortened? NO. I need it LONGER.
-    
-    TASK: Rewrite the following text but make it TWICE AS LONG (at least 500 words).
+    The following {section_type} of our story is only {current_count} words long. Rewrite the following text but make it TWICE AS LONG (at least 500 words).
     
     RULES:
     - Include 3 new paragraphs of SENSORY details (smell, feel, sound).
     - Add deep INTERNAL MONOLOGUE for the characters.
-    - Describe the atmosphere and environment in exquisite detail.
     - KEEP THE PLOT THE SAME. Just ELABORATE.
-    - Maintain headers (##) and scene tags ([SCENE:]).
     
     ORIGINAL TEXT:
     {text}
-    
-    Begin rewriting and expanding now (Target: 500+ words):"""
+    """
     
     expanded_text = generate_story(expansion_prompt, params, max_tokens=1500)
     return expanded_text if count_words(expanded_text) > current_count else text
 
 
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the actual API call to Google Gemini using the google-genai SDK."""
+    """Make the actual API call to Google Gemini with relaxed safety filters and deep inspection."""
     from google import genai
     from google.genai import types
     
@@ -130,27 +127,50 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
-        print(f"[LLM] Calling Gemini {model_name}...")
+        # Relaxed safety filters to prevent over-zealous blocking of children's stories
+        safety_settings = [
+            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE")
+        ]
+        
         generate_config = types.GenerateContentConfig(
             temperature=1.0,
             top_p=0.99,
             top_k=50,
             max_output_tokens=max_tokens,
-            system_instruction=system_instruction
+            system_instruction=system_instruction,
+            safety_settings=safety_settings
         )
         
+        print(f"[LLM] Calling Gemini {model_name}...")
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,
             config=generate_config
         )
         
+        # Inspect for success
         if response and response.text:
             print(f"[LLM] Success with Gemini {model_name}")
             return response.text.strip()
+        
+        # If no text, inspect candidates for block reasons
+        if response and response.candidates:
+            finish_reason = response.candidates[0].finish_reason
+            error_msg = f"Gemini ({model_name}) Blocked: FinishReason.{finish_reason.name}"
+            # Log specific safety ratings if blocked
+            if finish_reason.name == "SAFETY":
+                ratings = [f"{r.category}: {r.probability}" for r in response.candidates[0].safety_ratings]
+                error_msg += f" (Ratings: {', '.join(ratings)})"
+            
+            print(f"[LLM] {error_msg}")
+            global LAST_NARRATIVE_ERROR
+            LAST_NARRATIVE_ERROR = error_msg
             
     except Exception as e:
-        error_msg = f"Gemini ({model_name}): {type(e).__name__} - {str(e)}"
+        error_msg = f"Gemini ({model_name}) Fatal: {type(e).__name__} - {str(e)}"
         print(f"[LLM] {error_msg}")
         global LAST_NARRATIVE_ERROR
         LAST_NARRATIVE_ERROR = error_msg
