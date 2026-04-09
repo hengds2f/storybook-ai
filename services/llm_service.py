@@ -116,6 +116,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     """Make the actual API call to Google Gemini with relaxed safety filters and deep inspection."""
     from google import genai
     from google.genai import types
+    global LAST_NARRATIVE_ERROR
     
     api_key = config.get_gemini_key()
     if not api_key:
@@ -166,13 +167,11 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                 error_msg += f" (Ratings: {', '.join(ratings)})"
             
             print(f"[LLM] {error_msg}")
-            global LAST_NARRATIVE_ERROR
             LAST_NARRATIVE_ERROR = error_msg
             
     except Exception as e:
         error_msg = f"Gemini ({model_name}) Fatal: {type(e).__name__} - {str(e)}"
         print(f"[LLM] {error_msg}")
-        global LAST_NARRATIVE_ERROR
         LAST_NARRATIVE_ERROR = error_msg
         
     return None
@@ -181,6 +180,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
 def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
     """Make the actual API call to OpenAI with robust key retrieval and detailed error logging."""
     from openai import OpenAI
+    global LAST_NARRATIVE_ERROR
     
     api_key = config.get_openai_key()
     if not api_key:
@@ -214,7 +214,6 @@ def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         error_msg = f"{type(e).__name__}: {str(e)}"
         print(f"[LLM] OpenAI Fatal Error: {error_msg}")
         # We store the last error in a global for the diagnostic endpoint to read
-        global LAST_NARRATIVE_ERROR
         LAST_NARRATIVE_ERROR = error_msg
         
     return None
