@@ -67,7 +67,7 @@ def generate_story_8act(params: dict) -> str:
 
         act_text = None
         attempts = 0
-        max_attempts = 2 # Allow one retry for safety/glitch recovery
+        max_attempts = 2 
         
         while not act_text and attempts < max_attempts:
             if attempts > 0:
@@ -76,13 +76,17 @@ def generate_story_8act(params: dict) -> str:
             if config.TEXT_GEN_ENGINE == "openai":
                 act_text = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=800)
             else:
-                model_to_use = config.GEMINI_MODEL_PRO if i == config.ACT_COUNT else config.GEMINI_MODEL_STANDARD
+                # DEFAULT TO PRO for Act 8, but FALLBACK to Flash if it fails
+                model_to_use = config.GEMINI_MODEL_PRO if (i == 8 and attempts == 0) else config.GEMINI_MODEL_STANDARD
                 act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
             
             attempts += 1
         
         if not act_text:
-            print(f"  -> {act_titles[i-1]} failed after {max_attempts} attempts. Returning overall fallback.")
+            error_msg = f"Act {i} ({act_titles[i-1]}) failed after {max_attempts} attempts."
+            print(f"  -> {error_msg} Returning overall fallback.")
+            global LAST_NARRATIVE_ERROR
+            LAST_NARRATIVE_ERROR = f"ENGINE_FAILURE: {error_msg}"
             return _demo_story(params)
         
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
