@@ -120,15 +120,16 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
     from google import genai
     from google.genai import types
     
-    if not config.GEMINI_API_KEY:
+    api_key = config.get_gemini_key()
+    if not api_key:
+        print("[LLM] ERROR: GEMINI_API_KEY is missing.")
         return None
         
     try:
-        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        client = genai.Client(api_key=api_key)
         
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
-        # Maximize creativity parameters for variety
         generate_config = types.GenerateContentConfig(
             temperature=1.0,
             top_p=0.99,
@@ -147,20 +148,18 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             return response.text.strip()
             
     except Exception as e:
-        print(f"[LLM] Gemini Error: {e}")
+        print(f"[LLM] Gemini Error: {type(e).__name__} - {e}")
         
     return None
 
 
 def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the actual API call to OpenAI with robust key retrieval."""
+    """Make the actual API call to OpenAI with robust key retrieval and detailed error logging."""
     from openai import OpenAI
     
-    # Robust API key retrieval (checks config and live os.environ)
-    api_key = config.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")
-    
+    api_key = config.get_openai_key()
     if not api_key:
-        print("[LLM] ERROR: OPENAI_API_KEY is missing (checked config and os.environ).")
+        print("[LLM] ERROR: OPENAI_API_KEY is missing.")
         return None
         
     try:
@@ -168,6 +167,7 @@ def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
+        print(f"[LLM] Calling OpenAI {model_name}...")
         response = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -180,12 +180,21 @@ def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
         )
         
         if response.choices and response.choices[0].message.content:
-            return response.choices[0].message.content.strip()
+            content = response.choices[0].message.content.strip()
+            print(f"[LLM] Success with OpenAI {model_name}")
+            return content
             
     except Exception as e:
-        print(f"[LLM] OpenAI Error: {e}")
+        # Detailed error reporting for the diagnostic UI
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        print(f"[LLM] OpenAI Fatal Error: {error_msg}")
+        # We store the last error in a global for the diagnostic endpoint to read
+        global LAST_NARRATIVE_ERROR
+        LAST_NARRATIVE_ERROR = error_msg
         
     return None
+
+LAST_NARRATIVE_ERROR = None
 
 
     return None

@@ -19,9 +19,7 @@ GEMINI_MODEL_STANDARD = "gemini-1.5-flash"
 GEMINI_MODEL_PRO = "gemini-1.5-pro"
 
 # --- Hugging Face Configuration ---
-# Use HF_TOKEN or HUGGING_FACE_HUB_TOKEN
 HF_API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-# Models: "black-forest-labs/FLUX.1-schnell" or "stabilityai/stable-diffusion-xl-base-1.0"
 HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
 
 # --- OpenAI Configuration ---
@@ -30,6 +28,13 @@ OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o")
 OPENAI_IMAGE_MODEL = "dall-e-3"
 IMAGE_SIZE = "1024x1024"
 IMAGE_QUALITY = "standard"
+
+def get_openai_key():
+    """Live key retrieval to bypass module caching issues."""
+    return os.environ.get("OPENAI_API_KEY") or OPENAI_API_KEY
+
+def get_gemini_key():
+    return os.environ.get("GOOGLE_API_KEY") or GEMINI_API_KEY
 
 # --- Narrative Engine Settings ---
 # Seed for narrative variety

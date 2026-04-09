@@ -105,7 +105,6 @@ def list_stories(profile_id):
         return jsonify({"error": "Profile not found"}), 404
 
     stories = get_stories_for_profile(profile_id)
-    # Return summary (no full content for list performance)
     summaries = []
     for s in stories:
         summaries.append({
@@ -170,10 +169,7 @@ def download_pdf(story_id):
         return jsonify({"error": "Story not found"}), 404
         
     try:
-        # Generate the PDF bytes
         pdf_bytes = generate_story_pdf(story)
-        
-        # Safe filename
         safe_title = "".join([c for c in story.get('title', 'story') if c.isalnum() or c==' ']).rstrip()
         filename = f"{safe_title}.pdf"
         
@@ -188,9 +184,6 @@ def download_pdf(story_id):
         return jsonify({"error": "Could not generate PDF"}), 500
 
 
-
-
-
 @story_bp.route("/api/test-paint")
 def test_paint():
     """Hidden diagnostic endpoint to test a single image generation with full error reporting."""
@@ -199,8 +192,6 @@ def test_paint():
     
     prompt = request.args.get("prompt", "a magical golden castle in the clouds, whimsical children's book style")
     print(f"[DIAGNOSTIC] Starting audit-paint for: {prompt}")
-    
-    # We mock params for the test
     test_params = {"setting": "magical world", "age_group": "6-8"}
     
     image_url, audit_log = generate_image_with_audit(prompt, test_params)
@@ -218,27 +209,64 @@ def test_paint():
             "success": False, 
             "message": "Illustration failed across all models in pool.",
             "audit_log": audit_log,
-            "hint": "Check the audit_log for specific status codes (e.g. 403, 503)."
+            "hint": "Check the audit_log for specific status codes."
+        }), 500
+
+
+@story_bp.route("/api/test-narrative")
+def test_narrative():
+    """Diagnostic endpoint to test a single OpenAI story act with full error reporting."""
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    from services.llm_service import _call_openai_api, LAST_NARRATIVE_ERROR
+    
+    prompt = "Write a short 3-sentence intro about a brave squirrel. Use whimsical language."
+    print(f"[DIAGNOSTIC] Starting test-narrative...")
+    
+    result = _call_openai_api(config.OPENAI_TEXT_MODEL, prompt, max_tokens=100)
+    
+    if result:
+        return jsonify({
+            "success": True, 
+            "content": result,
+            "message": "Narrative generation successful!"
+        }), 200
+    else:
+        return jsonify({
+            "success": False, 
+            "message": "Narrative generation failed.",
+            "error_captured": LAST_NARRATIVE_ERROR,
+            "hint": "Check the error_captured field for the exact reason (e.g. RateLimitError, AuthenticationError)."
         }), 500
 
 
 @story_bp.route("/api/ai-status")
 def ai_status():
-    """Diagnostic endpoint to check AI configuration."""
+    """Diagnostic endpoint to check AI configuration with safe key prefix disclosure."""
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
     
     data_dir = os.path.join("static", "generated_images")
     
+    def get_prefix(key):
+        if not key: return "MISSING"
+        return f"{key[:4]}...{key[-4:]}" if len(key) > 8 else "****"
+
+    from services.llm_service import LAST_NARRATIVE_ERROR
+
     status = {
-        "gemini_key_present": bool(config.GEMINI_API_KEY or os.environ.get("GOOGLE_API_KEY")),
-        "openai_key_present": bool(config.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")),
+        "gemini_key_present": bool(config.get_gemini_key()),
+        "gemini_prefix": get_prefix(config.get_gemini_key()),
+        "openai_key_present": bool(config.get_openai_key()),
+        "openai_prefix": get_prefix(config.get_openai_key()),
         "hf_token_present": bool(config.HF_API_KEY),
+        "hf_prefix": get_prefix(config.HF_API_KEY),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
         "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.OPENAI_TEXT_MODEL if config.TEXT_GEN_ENGINE == 'openai' else config.GEMINI_MODEL_STANDARD})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL if config.IMAGE_GEN_ENGINE == 'huggingface' else config.OPENAI_IMAGE_MODEL})",
-        "narrative_uniqueness": "Active (Entropy Seeds + Persistent Taboos)"
+        "last_narrative_error": LAST_NARRATIVE_ERROR
     }
     
     return jsonify(status), 200
