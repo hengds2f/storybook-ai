@@ -56,6 +56,21 @@ def init_db():
             FOREIGN KEY (profile_id) REFERENCES profiles(id),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
+    # Story Generation Tasks (for Background processing)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS story_tasks (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            profile_id TEXT NOT NULL,
+            params TEXT NOT NULL,
+            status TEXT NOT NULL,
+            progress_pct INTEGER DEFAULT 0,
+            status_message TEXT,
+            result_story_id TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (profile_id) REFERENCES profiles(id)
+        )
     """)
 
     conn.commit()
@@ -234,6 +249,59 @@ def delete_story(story_id: str, user_id: str) -> bool:
     conn.commit()
     conn.close()
     return cursor.rowcount > 0
+
+
+# ── Story Tasks (Background) ──────────────────────────────────────────────
+
+def create_story_task(user_id: str, profile_id: str, params: dict) -> dict:
+    conn = get_db()
+    task = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "profile_id": profile_id,
+        "params": json.dumps(params),
+        "status": "pending",
+        "progress_pct": 0,
+        "status_message": "Initializing...",
+        "created_at": datetime.utcnow().isoformat()
+    }
+    conn.execute(
+        "INSERT INTO story_tasks (id, user_id, profile_id, params, status, progress_pct, status_message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (task["id"], task["user_id"], task["profile_id"],
+         task["params"], task["status"], task["progress_pct"], task["status_message"], task["created_at"])
+    )
+    conn.commit()
+    conn.close()
+    return task
+
+
+def update_story_task(task_id: str, **kwargs) -> bool:
+    if not kwargs:
+        return False
+    conn = get_db()
+    fields = []
+    values = []
+    for k, v in kwargs.items():
+        fields.append(f"{k} = ?")
+        values.append(v)
+    values.append(task_id)
+    
+    query = f"UPDATE story_tasks SET {', '.join(fields)} WHERE id = ?"
+    cursor = conn.execute(query, tuple(values))
+    conn.commit()
+    conn.close()
+    return cursor.rowcount > 0
+
+
+def get_story_task(task_id: str) -> dict | None:
+    conn = get_db()
+    row = conn.execute("SELECT * FROM story_tasks WHERE id = ?", (task_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    t = dict(row)
+    t["params"] = json.loads(t["params"])
+    return t
 
 
 def get_stats_for_user(user_id: str) -> dict:

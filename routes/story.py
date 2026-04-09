@@ -42,57 +42,43 @@ def generate():
     if not params["characters"] or not params["characters"][0].get("name"):
         params["characters"] = [{"name": "Alex", "traits": ["brave", "curious"]}]
 
-    # Get age config for token budget
-    age_cfg = get_age_config(params["age_group"])
+    from services.storage import create_story_task
+    from services.bg_tasks import start_story_generation_thread
+    from flask import current_app
 
-    # Build and send prompt (8-Act Narrative Engine for 1000+ words)
-    raw_text = generate_story_8act(params)
-
-    # Parse the structured output
-    content = parse_story(raw_text, params)
-    title = content["title"]
-
-    # Check word count - ensure story is more than 500 words
-    total_words = sum(count_words(section["content"]) for section in content.get("sections", []))
-    retries = 0
-    max_retries = 3
-    while total_words < 500 and retries < max_retries:
-        print(f"[STORY] Story too short ({total_words} words), regenerating... (attempt {retries+1}/{max_retries})")
-        raw_text = generate_story_8act(params)
-        content = parse_story(raw_text, params)
-        total_words = sum(count_words(section["content"]) for section in content.get("sections", []))
-        retries += 1
-
-    if total_words < 500:
-        print(f"[STORY] Failed to generate story >500 words after {max_retries} attempts. Proceeding with {total_words} words.")
-
-    # Generate illustrations for each section
-    for section in content.get("sections", []):
-        scene_desc = section.get("scene_description")
-        if scene_desc:
-            print(f"[STORY] Attempting illustration for: {scene_desc[:60]}...")
-            url = generate_image(scene_desc, params)
-            if url:
-                print(f"[STORY] Illustration success: {url}")
-                section["image_url"] = url
-            else:
-                print(f"[STORY] Illustration failed (check image_service logs)")
-
-    # Save to database
-    story = save_story(
-        profile_id=profile_id,
-        user_id=session["user_id"],
-        title=title,
-        parameters=params,
-        content=content
-    )
+    # Create background task
+    task = create_story_task(session["user_id"], profile_id, params)
+    
+    # Start thread (passing real app object for context)
+    start_story_generation_thread(task["id"], current_app._get_current_object())
 
     return jsonify({
         "success": True,
-        "story_id": story["id"],
-        "title": title,
-        "content": content
-    }), 201
+        "task_id": task["id"],
+        "message": "Story generation started in background."
+    }), 202
+
+
+@story_bp.route("/api/generate/status/<task_id>", methods=["GET"])
+def generation_status(task_id):
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+        
+    from services.storage import get_story_task
+    task = get_story_task(task_id)
+    
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+        
+    if task["user_id"] != session["user_id"]:
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    return jsonify({
+        "status": task["status"],
+        "progress_pct": task["progress_pct"],
+        "status_message": task["status_message"],
+        "result_story_id": task["result_story_id"]
+    }), 200
 
 
 @story_bp.route("/api/stories/<profile_id>", methods=["GET"])

@@ -261,14 +261,30 @@ const App = (() => {
   }
 
   // ── Story loading overlay ──────────────────────────────────────────────
-  function showStoryLoading() {
+  function showStoryLoading(subtext = '', progress = null) {
     const el = document.getElementById('storyLoadingOverlay');
-    if (el) el.classList.add('visible');
+    if (!el) return;
+    el.classList.add('visible');
+    
+    if (subtext) {
+      const sub = document.getElementById('storyLoadingSubtext');
+      if (sub) sub.textContent = subtext;
+    }
+    
+    if (progress !== null) {
+      const bar = document.getElementById('storyProgressBar');
+      if (bar) bar.style.width = `${progress}%`;
+    }
   }
 
   function hideStoryLoading() {
     const el = document.getElementById('storyLoadingOverlay');
-    if (el) el.classList.remove('visible');
+    if (el) {
+      el.classList.remove('visible');
+      // Reset progress for next time
+      const bar = document.getElementById('storyProgressBar');
+      if (bar) bar.style.width = '0%';
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────

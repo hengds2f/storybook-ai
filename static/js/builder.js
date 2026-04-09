@@ -350,7 +350,7 @@ const Builder = (() => {
     };
 
     // Show loading overlay
-    App.showStoryLoading();
+    App.showStoryLoading('Initializing...', 5);
     document.getElementById('generateBtn').disabled = true;
 
     try {
@@ -361,12 +361,16 @@ const Builder = (() => {
       });
 
       const data = await res.json();
-      App.hideStoryLoading();
 
-      if (res.ok) {
+      if (res.status === 202 && data.task_id) {
+        // Asynchronous mode
+        pollGenerationStatus(data.task_id);
+      } else if (res.ok && data.story_id) {
+        // Fallback or immediate success (legacy)
         App.showToast('success', 'Story created! 📖');
         window.location.href = `/story/${data.story_id}`;
       } else {
+        App.hideStoryLoading();
         App.showToast('error', data.error || 'Failed to generate story');
         document.getElementById('generateBtn').disabled = false;
       }
@@ -374,6 +378,43 @@ const Builder = (() => {
       App.hideStoryLoading();
       App.showToast('error', 'Network error — please try again');
       document.getElementById('generateBtn').disabled = false;
+    }
+  }
+
+  async function pollGenerationStatus(taskId) {
+    try {
+      const res = await fetch(`/api/generate/status/${taskId}`);
+      const data = await res.json();
+      
+      if (!res.ok) {
+        App.hideStoryLoading();
+        App.showToast('error', data.error || 'Progress tracking failed');
+        document.getElementById('generateBtn').disabled = false;
+        return;
+      }
+
+      if (data.status === 'finished' && data.result_story_id) {
+        App.showStoryLoading('Success! Opening your book...', 100);
+        setTimeout(() => {
+          window.location.href = `/story/${data.result_story_id}`;
+        }, 1000);
+      } else if (data.status === 'failed') {
+        App.hideStoryLoading();
+        App.showToast('error', data.status_message || 'Generation failed');
+        document.getElementById('generateBtn').disabled = false;
+      } else {
+        // Still working: Update UI and poll again
+        const msg = data.status_message || 'The magic is happening...';
+        const progress = data.progress_pct || 10;
+        App.showStoryLoading(msg, progress);
+        
+        // Poll every 3 seconds
+        setTimeout(() => pollGenerationStatus(taskId), 3000);
+      }
+    } catch (err) {
+      console.error('Polling error:', err);
+      // Wait and try again (don't give up on one network hiccup)
+      setTimeout(() => pollGenerationStatus(taskId), 5000);
     }
   }
 

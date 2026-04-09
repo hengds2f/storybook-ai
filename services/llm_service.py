@@ -6,6 +6,7 @@ from services.story_pools import (
     PLOT_ARCHETYPES, SURPRISE_TWISTS, NARRATIVE_STYLES, 
     SUB_GENRES, PLOT_SPARKS, ATMOSPHERES
 )
+from services.storage import update_story_task
 from services.story_builder import build_character_descriptions
 
 ERROR_LOG_PATH = "data/last_ai_error.txt"
@@ -58,9 +59,10 @@ def count_words(text: str) -> int:
     return len(clean_text.split())
 
 
-def generate_story_8act(params: dict) -> str:
+def generate_story_8act(params: dict, task_id: str = None) -> str:
     """
     The 8-Act Narrative Engine with automatic retries and engine resilience.
+    Now supports task_id for live progress updates.
     """
     from services.story_builder import build_8act_prompts, set_seeds
     
@@ -94,6 +96,10 @@ def generate_story_8act(params: dict) -> str:
         max_attempts = 2 
         
         while not act_text and attempts < max_attempts:
+            if task_id:
+                progress = 5 + int((i / 8) * 75)
+                update_story_task(task_id, status="generating", status_message=f"Writing Act {i}: {act_titles[i-1]}...", progress_pct=progress)
+            
             if attempts > 0:
                 print(f"  -> Retry attempt {attempts} for {act_titles[i-1]}...")
                 
@@ -102,7 +108,7 @@ def generate_story_8act(params: dict) -> str:
             else:
                 # DEFAULT TO PRO for Act 8, but FALLBACK to Flash if it fails
                 model_to_use = config.GEMINI_MODEL_PRO if (i == 8 and attempts == 0) else config.GEMINI_MODEL_STANDARD
-                act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800)
+                act_text = _call_gemini_api(model_to_use, prompt, max_tokens=800, task_id=task_id)
             
             attempts += 1
         
@@ -159,10 +165,10 @@ def _discovery_gemini_models(api_key: str) -> list:
     return []
 
 
-def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
+def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str = None) -> str | None:
     """
     ULTIMATE RELIABILITY: Make a direct REST API call to Gemini.
-    With Auto-Healing: Automatically falls back to discovered models if config fails.
+    With Auto-Healing and Quota Resilience.
     """
     import requests
     import json
@@ -237,7 +243,11 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                         wait_match = re.search(r"retry in (\d+\.?\d*)s", response.text)
                         wait_seconds = float(wait_match.group(1)) + 1.0 if wait_match else 10.0
                         
-                        print(f"[LLM] 429 Quota Exceeded on {model_path}. Sleeping {wait_seconds}s before retry {retry_attempt+1}/{max_429_retries}...")
+                        msg = f"Waiting ({wait_seconds}s) for Quota..."
+                        print(f"[LLM] 429 Quota Exceeded on {model_path}. {msg}")
+                        if task_id:
+                            update_story_task(task_id, status="waiting_for_quota", status_message=msg)
+                            
                         _set_last_error(f"QUOTA_WAITING ({wait_seconds}s): {model_path}")
                         time.sleep(wait_seconds)
                         continue # Loop and try the exact same model again
