@@ -187,7 +187,7 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                 model_aliases.append(d_model)
     
     # Try multiple API versions and aliases
-    for api_version in ["v1beta", "v1"]:
+    for api_version in ["v1beta", "v1", "v1alpha"]:
         for m_alias in model_aliases:
             # NORMALIZATION: Ensure model starts with 'models/' and handle full paths correctly
             if m_alias.startswith("models/"):
@@ -213,9 +213,9 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
             try:
                 print(f"[LLM] Trying {api_version} with {model_path}...")
                 response = requests.post(url, json=payload, timeout=30)
-                res_data = response.json()
                 
                 if response.status_code == 200:
+                    res_data = response.json()
                     if "candidates" in res_data and res_data["candidates"]:
                         candidate = res_data["candidates"][0]
                         if "content" in candidate and "parts" in candidate["content"]:
@@ -225,17 +225,16 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
                     
                     reason = res_data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
                     _set_last_error(f"Gemini Blocked ({model_path}): {reason}")
-                elif response.status_code == 404:
-                    print(f"[LLM] 404 for {model_path} on {api_version}")
-                    continue
-                elif response.status_code == 429:
-                    print(f"[LLM] 429 (Quota) for {model_path}. Trying next...")
-                    continue
                 else:
-                    error_data = res_data.get("error", {})
-                    msg = error_data.get("message", "Unknown API error")
-                    _set_last_error(f"API Error ({response.status_code}): {msg}")
-                    if response.status_code in [401, 403]: return None
+                    err_msg = f"API Error ({response.status_code}) on {api_version}/{model_path}: {response.text[:500]}"
+                    print(f"[LLM] {err_msg}")
+                    # We only record the first failure if it's not a 404/429
+                    if response.status_code not in [404, 429]:
+                        _set_last_error(err_msg)
+                        if response.status_code in [401, 403]: return None
+                    else:
+                        # For 404/429, we still want to see the last one if all fail
+                        _set_last_error(err_msg)
                         
             except Exception as e:
                 _set_last_error(f"Network Exception: {str(e)}")
