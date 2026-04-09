@@ -112,34 +112,36 @@ def expand_content(text: str, params: dict, section_type: str, seeds: dict) -> s
 
 
 def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the actual API call to Google Gemini."""
-    import google.genai as genai
+    """Make the actual API call to Google Gemini using the google-genai SDK."""
+    from google import genai
+    from google.genai import types
     
     if not config.GEMINI_API_KEY:
         return None
         
-    genai.configure(api_key=config.GEMINI_API_KEY)
-    
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        system_instruction="You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
-    )
-    
-    # Maximize creativity parameters for variety
-    generation_config = {
-        "temperature": 1.0,  # Max creative temperature
-        "top_p": 0.99,       # High probability tail for variety
-        "top_k": 50,         # Broaden word selection pool
-        "max_output_tokens": max_tokens,
-    }
-    
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config=generation_config
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        
+        system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
+        
+        # Maximize creativity parameters for variety
+        generate_config = types.GenerateContentConfig(
+            temperature=1.0,
+            top_p=0.99,
+            top_k=50,
+            max_output_tokens=max_tokens,
+            system_instruction=system_instruction
         )
+        
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=generate_config
+        )
+        
         if response and response.text:
             return response.text.strip()
+            
     except Exception as e:
         print(f"[LLM] Gemini Error: {e}")
         
