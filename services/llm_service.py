@@ -153,14 +153,18 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int) -> str | Non
 
 
 def _call_openai_api(model_name: str, prompt: str, max_tokens: int) -> str | None:
-    """Make the actual API call to OpenAI."""
+    """Make the actual API call to OpenAI with robust key retrieval."""
     from openai import OpenAI
     
-    if not config.OPENAI_API_KEY:
+    # Robust API key retrieval (checks config and live os.environ)
+    api_key = config.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")
+    
+    if not api_key:
+        print("[LLM] ERROR: OPENAI_API_KEY is missing (checked config and os.environ).")
         return None
         
     try:
-        client = OpenAI(api_key=config.OPENAI_API_KEY)
+        client = OpenAI(api_key=api_key)
         
         system_instruction = "You are a master storyteller for children, writing in the whimsical, descriptive, and moral-focused style of C.S. Lewis. Your stories are segmented into 8 acts. IMPORTANT: The FINAL act (Act 8) MUST conclude with a 4-8 line RHYMING POEM that captures the story's moral. You are FAMOUS for your UNPREDICTABLE plots. NEVER use the '#' symbol. Use vivid, sensory descriptions and occasionally address the reader directly."
         
