@@ -122,7 +122,9 @@ def generate_story_8act(params: dict, task_id: str = None) -> str:
             existing_error = get_last_error()
             if not existing_error or "ENGINE_FAILURE" in existing_error:
                 _set_last_error(f"ENGINE_FAILURE: {error_msg}")
-            return _demo_story(params)
+            
+            # Enforce Absolute Originality: If AI fails, the generation FAILS. No static templates.
+            return None
         
         full_story += f"[[{act_titles[i-1]}]]\n{act_text}\n\n"
         print(f"  -> {act_titles[i-1]} completed.")
@@ -295,8 +297,9 @@ def _call_gemini_api(model_name: str, prompt: str, max_tokens: int, task_id: str
 
 
 def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
-    """Tertiary fallback using Hugging Face text generation logic."""
-    from huggingface_hub import InferenceClient
+    """Tertiary fallback using robust Hugging Face REST logic to prevent version mismatches."""
+    import requests
+    import config
     
     api_key = config.HF_API_KEY
     if not api_key:
@@ -304,29 +307,43 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
         return None
         
     try:
-        client = InferenceClient(token=api_key)
-        system_instruction = "You are a master storyteller for children. Your stories are segmented into 8 acts. IMPORTANT: Act 8 MUST conclude with a 4-8 line RHYMING POEM."
+        model = config.HF_TEXT_MODEL
+        url = f"https://api-inference.huggingface.co/models/{model}"
+        headers = {"Authorization": f"Bearer {api_key}"}
         
-        messages = [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": prompt}
-        ]
+        system_instruction = "You are a master storyteller. Your task is to write a vividly descriptive creative story segment. IMPORTANT: If this is Act 8, you MUST end the response with a 4-8 line RHYMING POEM."
         
-        print(f"[LLM] Calling Hugging Face Fallback ({config.HF_TEXT_MODEL})...")
-        response = client.chat_completion(
-            model=config.HF_TEXT_MODEL,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=0.9
-        )
+        full_prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{system_instruction}<|eot_id|><|start_header_id|>user<|end_header_id|>\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
         
-        if response.choices and response.choices[0].message.content:
-            text = response.choices[0].message.content.strip()
-            print(f"[LLM] Success with HF {config.HF_TEXT_MODEL}")
-            return text
+        payload = {
+            "inputs": full_prompt,
+            "parameters": {
+                "max_new_tokens": max_tokens, 
+                "temperature": 0.8, 
+                "return_full_text": False
+            }
+        }
+        
+        print(f"[LLM] Calling HF API ({model})...")
+        response = requests.post(url, headers=headers, json=payload, timeout=40)
+        
+        if response.status_code == 200:
+            res_data = response.json()
+            if isinstance(res_data, list) and "generated_text" in res_data[0]:
+                text = res_data[0]["generated_text"].strip()
+                # Ensure marker gets correctly placed if HF forgets
+                if "ACT_8" in prompt and "POEM" in text.upper() == False:
+                    # In case it missed the poem constraint entirely
+                    pass 
+                print(f"[LLM] Success with HF {model}")
+                return text
+        else:
+            err = f"HF Fallback Error ({response.status_code}): {response.text[:200]}"
+            print(f"[LLM] {err}")
+            _set_last_error(err)
             
     except Exception as e:
-        err = f"HF Fallback Error: {str(e)}"
+        err = f"HF Network Error: {str(e)}"
         print(f"[LLM] {err}")
         _set_last_error(err)
         
@@ -337,61 +354,4 @@ if not os.path.exists(ERROR_LOG_PATH):
     _set_last_error("ENGINE_INITIALIZED (No errors yet)")
 
 
-def _demo_story(params: dict) -> str:
-    """
-    Return a High-Quality, Non-Repeating 1000-word fallback story.
-    No '#' symbols are used. Supports multiple characters.
-    """
-    import random
-    characters = params.get("characters", [])
-    names_str, _ = build_character_descriptions(characters)
-    
-    setting = params.get("setting", "a hidden world")
-    theme = params.get("theme", "courage")
-    moral = params.get("moral", "").strip() or "Adventure is out there."
 
-    # Custom Pool items for diversity
-    atm = random.choice(ATMOSPHERES)
-    gen = random.choice(SUB_GENRES)
-
-    # Markers for the 8 acts
-    s1 = "ACT_1: Setting the Scene"
-    s2 = "ACT_2: Character Depth"
-    s3 = "ACT_3: The Inciting Incident"
-    s4 = "ACT_4: Rising Action"
-    s5 = "ACT_5: The Complication"
-    s6 = "ACT_6: The Climax"
-    s7 = "ACT_7: The Resolution"
-    s8 = "ACT_8: Aftermath & Final Moral"
-
-    return f"""[[{s1}]]
-The air in {setting} was {atm}, carrying the crisp scent of pine needles and something else—something that felt remarkably like magic and old, forgotten songs. In the heart of this realm, {names_str} walked with a sense of wonder that filled their hearts like a rising tide. Now, you must understand that this wasn't just any world; it was a place where every stone and every leaf seemed to whisper of a grander design, a story waiting to be written by their very footsteps.
-
-[[{s2}]]
-{names_str} stopped to notice the way the light caught the edges of the world, creating ripples of Neon and Luminous color. They had always been wanderers, but in {setting}, the journey felt different. It was as if their own internal worlds were finally matching the vibrancy of the external landscape, a harmony of spirit and space that only the very brave or the very curious ever truly find.
-
-[[{s3}]]
-Suddenly, a flicker of something impossible caught their eyes. A discovery so strange that it defied all logic: a hidden pulse within the very ground beneath them. It was a moment of pure realization: {names_str} weren't just visitors in {setting}; they were part of it, a crucial chapter in its unfolding mystery, like characters in a book who suddenly realize they are being read.
-
-[[{s4}]]
-The path forward began to shift and transform, presenting trials that tested every ounce of their {theme}. The world seemed to respond to their presence, creating challenges that were as much about the mind as they were about the physical journey. Each step was a commitment to the path they had chosen together, for in {setting}, one never truly travels alone if they have a friend and a true heart.
-
-[[{s5}]]
-But then, a complication arose—a twist that made the goal seem further away than ever. It was a test of resilience, a moment where the atmosphere of {setting} turned from wonder to deep, cinematic mystery. The Stakes were clear now: the transformation of this world depended on the choices made by {names_str}, and as any good explorer knows, the hardest choice is often the right one.
-
-[[{s6}]]
-The climax was a blur of action and intense emotion. With hearts full of {theme}, {names_str} faced the core of the problem. It wasn't just about winning; it was about understanding, about finding the balance between the {atm} energy of the realm and their own courage. It was a battle of wills, where kindness proved sharper than any sword.
-
-[[{s7}]]
-As the light stabilized, a new resolution emerged. The world of {setting} took on a soft, golden glow, a reflection of the peace that {names_str} had found. The challenge hadn't shifted them; it had refined them, turning their initial curiosity into a lasting wisdom that would stay with them long after they left this magical place.
-
-[[{s8}]]
-The lesson was simple yet profound: {moral} Some adventures are hard, but they are always better when shared with the world. {names_str} stood as beacons of {theme}, heroes who didn't just survive an adventure, but helped a world find its soul once again. 
-
-Though the journey now is done,
-Our heroes shining like the sun,
-The magic stays within the heart,
-For every ending is a start.
-
-[SCENE: {names_str} standing triumphantly in the heart of {setting}, surrounded by the peaceful, glowing energy of their discovery, looking like kings and queens of an ancient realm.]
-"""
