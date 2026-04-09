@@ -330,6 +330,25 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
             res_data = response.json()
             if "choices" in res_data and res_data["choices"]:
                 text = res_data["choices"][0]["message"]["content"].strip()
+                
+                # Force an explicitly triggered poem at the end of Act 8 to guarantee formatting
+                if "ACT_8" in prompt:
+                    poem_payload = {
+                        "model": model,
+                        "messages": [
+                            {"role": "user", "content": "Write a 4-line rhyming children's poem to conclude the story. IMPORTANT: Output ONLY the poem. Use double line breaks (\\n\\n) between every single line so it renders correctly in Markdown."}
+                        ],
+                        "max_tokens": 150,
+                        "temperature": 0.9
+                    }
+                    print(f"[LLM] Enforcing explicit poem generation for Act 8...")
+                    p_res = requests.post(url, headers=headers, json=poem_payload, timeout=20)
+                    if p_res.status_code == 200:
+                        p_data = p_res.json()
+                        p_text = p_data["choices"][0]["message"]["content"].strip()
+                        # Append the cleanly generated poem natively to the Act 8 text block
+                        text += f"\n\n{p_text}\n\n"
+                        
                 print(f"[LLM] Success with HF {model}")
                 return text
         else:
