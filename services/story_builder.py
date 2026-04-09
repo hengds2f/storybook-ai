@@ -237,6 +237,7 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     elif act_number == 8:
         prompt += f"A peaceful closing scene in {setting}. \n"
         prompt += "MANDATORY FINAL TASK: You MUST write a 6-8 line RHYMING POEM that conveys the overall moral of the story. \n"
+        prompt += "CRITICAL: The poem must be preceded exactly by the text '[[POEM]]' on its own line.\n"
         prompt += "The poem is the most important part of this response. Ensure it rhymes perfectly and feels like a classic children's verse. \n"
         prompt += f"Reflect on what {names_str} each learned through the poem."
 
@@ -264,15 +265,28 @@ def parse_story(raw_text: str, params: dict) -> dict:
     # 3. Resolution (Acts 6 & 7)
     # 4. Moral (Act 8)
     
+    # Extract poem definitively from the moral output
+    moral_act = acts[7] if len(acts) > 7 else ""
+    poem_content = ""
+    if "[[POEM]]" in moral_act:
+        parts = moral_act.split("[[POEM]]")
+        moral_act = parts[0].strip()
+        poem_content = parts[1].strip()
+    
     sections_data = {
         "introduction": "\n\n".join(acts[:2]) if len(acts) >= 2 else (acts[0] if acts else ""),
         "challenge": "\n\n".join(acts[2:5]) if len(acts) >= 5 else ("\n\n".join(acts[2:]) if len(acts) > 2 else ""),
         "resolution": "\n\n".join(acts[5:7]) if len(acts) >= 7 else ("\n\n".join(acts[5:]) if len(acts) > 5 else ""),
-        "moral": acts[7] if len(acts) > 7 else ""
+        "moral": moral_act,
+        "poem": poem_content
     }
 
     processed_sections = []
     section_names = ["Introduction", "Challenge", "Resolution", "Moral"]
+    
+    # If a poem was successfully parsed, register it as its own graphical section
+    if poem_content:
+        section_names.append("Poem")
     
     for name in section_names:
         key = name.lower()
@@ -326,7 +340,8 @@ def _generate_default_scene(section_name: str, params: dict) -> str:
         "Introduction": f"{names_str} standing together in {setting}, eyes wide with wonder",
         "Challenge": f"{names_str} facing a difficult moment in {setting}, determined and brave",
         "Resolution": f"{names_str} smiling triumphantly in {setting}, having overcome the challenge together",
-        "Moral": f"{names_str} together in {setting}, basking in a warm golden light"
+        "Moral": f"{names_str} together in {setting}, basking in a warm golden light",
+        "Poem": f"An artistic, storybook illustration of {setting} forming the backdrop of a magical poem, glowing with soft light"
     }
     return scenes.get(section_name, f"{names_str} in a beautiful scene in {setting}")
 

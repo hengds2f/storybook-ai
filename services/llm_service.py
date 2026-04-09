@@ -347,7 +347,7 @@ def _call_hf_api(prompt: str, max_tokens: int) -> str | None:
                         p_data = p_res.json()
                         p_text = p_data["choices"][0]["message"]["content"].strip()
                         # Append the cleanly generated poem natively to the Act 8 text block
-                        text += f"\n\n{p_text}\n\n"
+                        text += f"\n\n[[POEM]]\n\n{p_text}\n\n"
                         
                 print(f"[LLM] Success with HF {model}")
                 return text
