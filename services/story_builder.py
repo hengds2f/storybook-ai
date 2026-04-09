@@ -236,10 +236,10 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
         prompt += f"{scene_instruction} The climax resolves. How do {names_str} each react to the resolution? Focus on the {theme} theme and show each character's personal growth."
     elif act_number == 8:
         prompt += f"A peaceful closing scene in {setting}. \n"
+        prompt += f"Reflect on what {names_str} each learned. \n"
         prompt += "MANDATORY FINAL TASK: You MUST write a 6-8 line RHYMING POEM that conveys the overall moral of the story. \n"
-        prompt += "CRITICAL: The poem must be preceded exactly by the text '[[POEM]]' on its own line.\n"
         prompt += "The poem is the most important part of this response. Ensure it rhymes perfectly and feels like a classic children's verse. \n"
-        prompt += f"Reflect on what {names_str} each learned through the poem."
+        prompt += "CRITICAL FORMATTING IMPERATIVE: You must write exactly '[[POEM]]' on its own line immediately before the verse so it renders correctly. Do NOT forget this marker."
 
     if previous_content:
         # Pass the last segment for continuity
