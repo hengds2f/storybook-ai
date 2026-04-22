@@ -1,8 +1,8 @@
 import os
 import uuid
-import requests
-from PIL import Image
 import io
+from PIL import Image
+import config
 
 # Absolute path for storing generated images to avoid CWD issues
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,69 +15,58 @@ def generate_image(description: str, story_params: dict) -> str | None:
     return image_url
 
 
-def generate_image_with_audit(description: str, story_params: dict) -> tuple[str | None, list]:
-    """
-    Generate a story illustration using Hugging Face Inference API.
-    """
-    audit_logs = []
+def _generate_with_hf(description: str, story_params: dict, audit_logs: list) -> str | None:
+    """Internal helper for Hugging Face Inference API image generation."""
+    from huggingface_hub import InferenceClient
     
-    # Setup Hugging Face Inference API
-    hf_token = os.environ.get("HF_TOKEN")
-    # Masked log for debugging
-    masked_key = f"{hf_token[:5]}...{hf_token[-4:]}" if hf_token and len(hf_token) > 10 else "***"
-    print(f"[IMAGE] Using HF Token: {masked_key}")
+    # Robust API key retrieval
+    api_key = config.HF_API_KEY
+    if not api_key:
+        msg = "Hugging Face Token is missing (check HF_TOKEN or HUGGING_FACE_HUB_TOKEN)."
+        print(f"[IMAGE] CRITICAL ERROR: {msg}")
+        audit_logs.append({"model": "System", "status": "ERROR", "message": msg})
+        return None
 
-    # Ensure the directory exists and is writable
-    try:
-        os.makedirs(GENERATED_IMAGE_DIR, exist_ok=True)
-    except Exception as e:
-        msg = f"Directory {GENERATED_IMAGE_DIR} not writable: {e}"
-        audit_logs.append({"model": "System", "status": "FILE_ERROR", "message": msg})
-        return None, audit_logs
-
+    client = InferenceClient(token=api_key)
+    
     # Build a descriptive prompt
     setting = story_params.get("setting", "a magical place")
-    style = "vibrant children's storybook illustration, digital art, highly detailed, soft lighting, whimsical style"
+    style = "vibrant children's storybook illustration, digital art, highly detailed, whimsical style"
     full_prompt = f"{description}, {setting}, {style}. Ensure all characters are visible and the scene is enchanting."
 
-    log_entry = {"model": "FLUX.1-schnell", "status": "PENDING", "message": ""}
+    log_entry = {"model": config.HF_IMAGE_MODEL, "status": "PENDING", "message": ""}
     try:
-        print(f"[IMAGE] Painting with Hugging Face Inference API...")
+        print(f"[IMAGE] HF painting with {config.HF_IMAGE_MODEL}...")
+        image = client.text_to_image(full_prompt, model=config.HF_IMAGE_MODEL)
         
-        API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
-        headers = {}
-        if hf_token:
-            headers["Authorization"] = f"Bearer {hf_token}"
-            
-        payload = {"inputs": full_prompt}
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        # Ensure the directory exists
+        os.makedirs(GENERATED_IMAGE_DIR, exist_ok=True)
         
-        if response.status_code == 200:
-            image_bytes = response.content
-            image = Image.open(io.BytesIO(image_bytes))
-            
-            filename = f"story_{uuid.uuid4().hex[:8]}.webp"
-            filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
+        filename = f"story_{uuid.uuid4().hex[:8]}.webp"
+        filepath = os.path.join(GENERATED_IMAGE_DIR, filename)
 
-            if image.width > 1200:
-                image.thumbnail((1200, 1200))
-            image.save(filepath, "WEBP", quality=85)
-            
-            log_entry["status"] = 200
-            log_entry["message"] = "SUCCESS"
-            audit_logs.append(log_entry)
-            print(f"[IMAGE] Success with Hugging Face API")
-            return f"generated_images/{filename}", audit_logs
-        else:
-            log_entry["status"] = response.status_code
-            log_entry["message"] = f"HF API Error: {response.text}"
-            audit_logs.append(log_entry)
-            print(f"[IMAGE] HF API returned error {response.status_code}: {response.text}")
-
+        if image.width > 1200:
+            image.thumbnail((1200, 1200))
+        image.save(filepath, "WEBP", quality=85)
+        
+        log_entry["status"] = 200
+        log_entry["message"] = "SUCCESS"
+        audit_logs.append(log_entry)
+        print(f"[IMAGE] Success with Hugging Face")
+        return f"generated_images/{filename}"
+        
     except Exception as e:
-        log_entry["status"] = "EXCEPTION"
+        log_entry["status"] = "HF_EXCEPTION"
         log_entry["message"] = str(e)
         audit_logs.append(log_entry)
-        print(f"[IMAGE] Image generation failed: {e}")
+        print(f"[IMAGE] Hugging Face failed: {e}")
+        return None
 
-    return None, audit_logs
+
+def generate_image_with_audit(description: str, story_params: dict) -> tuple[str | None, list]:
+    """
+    Generate a story illustration using Hugging Face engine.
+    """
+    audit_logs = []
+    url = _generate_with_hf(description, story_params, audit_logs)
+    return url, audit_logs
