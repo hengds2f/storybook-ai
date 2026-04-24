@@ -453,69 +453,41 @@ def generate_vocab_questions(
 
 
 # Extended stop-word set used by allocate_story_vocab_words for word extraction.
-# Covers function words, pronouns, basic verbs/adjectives unlikely to be teaching words.
+# Only TRUE function words — pronouns, prepositions, auxiliary verbs, conjunctions,
+# and very basic common words a child already knows.
+# Story-specific nouns/adjectives/adverbs are intentionally NOT in this list
+# so the allocator can select them as teaching words.
 _STOP_WORDS: frozenset[str] = frozenset({
+    # Articles / determiners
+    "this","that","these","those","some","such","each","every","both",
+    "either","neither","another","other","others",
+    # Pronouns
     "about","above","after","again","against","ahead","along","already","also",
-    "always","among","another","around","asked","away","became","because",
-    "before","began","being","below","between","both","bring","brought",
-    "called","came","cannot","child","children","close","could","doing",
-    "done","down","during","each","ever","every","everyone","everything",
-    "except","eyes","face","father","finally","first","found","friend",
-    "friends","from","front","gave","going","gone","good","great","hands",
-    "happy","having","heard","heart","hello","help","here","himself",
-    "home","house","however","inside","into","itself","just","keep",
-    "kept","knew","know","large","later","leave","left","light","like",
-    "little","long","looked","made","make","many","maybe","might","more",
-    "most","mother","much","must","myself","named","near","never","night",
-    "nothing","often","once","only","other","others","ourselves","outside",
-    "over","place","point","quite","reach","ready","really","replied",
-    "right","round","said","same","second","seemed","shall","should",
-    "since","small","smile","smiled","something","sometimes","soon",
-    "spoke","start","still","story","taken","takes","their","there",
-    "these","think","those","thought","three","through","times","today",
-    "together","told","toward","tried","truly","turned","under","until",
-    "upon","using","voice","walks","wants","watch","watched","where",
-    "while","whose","will","within","without","words","world","would",
-    "years","young","yours","yourself","began","close","whole","every",
-    "asked","above","ahead","yours","shall","seven","eight","three",
-    "found","makes","comes","taken","given","shown","carry","learn",
-    "stand","stood","whole","bring","going","truly","reach","begin",
-    "looks","small","early","heard","happy","great","yours","could",
-    # Common everyday nouns / verbs a child already knows
-    "animals","beautiful","behind","birds","black","blue","brown","climbed",
-    "clouds","colors","colour","colors","colourful","colorful","dancing",
-    "decided","flowers","forest","green","ground","jumped","laughed",
-    "leaves","loved","loved","magic","mountains","moved","orange","picked",
-    "played","pretty","purple","queen","quickly","river","rocks","running",
-    "schools","smiled","sparkling","stones","sunlit","sunshine","swiftly",
-    "talked","trees","walked","water","white","yellow","chased","clapped",
-    "cried","danced","field","flowed","flying","glowing","grass","kingdom",
-    "lived","loved","ocean","paths","people","plants","prince","raining",
-    "riding","river","sailed","seeing","shined","shining","singing","sitting",
-    "sleeping","smelled","snowed","stood","swimming","things","towns",
-    "twinkled","valley","village","waving","winds","wishing","wondering",
-    "wooden","working","wanted",
-    # More basic nouns/verbs obvious to children
-    "picture","pictures","window","garden","castle","dragon","button",
-    "basket","bottle","bridge","candle","carpet","circle","corner",
-    "cotton","desert","dinner","dollar","engine","finger","golden",
-    "hammer","island","jacket","jungle","kitten","ladder","locket",
-    "marble","market","mirror","monkey","mother","napkin","needle",
-    "orange","parrot","pencil","pickle","pillow","pirate","pocket",
-    "rabbit","ribbon","rocket","saddle","sailor","shadow","silver",
-    "sister","spirit","spring","street","summer","sunset","supper",
-    "tablet","temple","thread","throne","ticket","timber","tinker",
-    "tongue","turtle","umbrella","velvet","viking","violet","visits",
-    "wallet","winter","wizard","wonder","wander","wicked","whisper",
-    # Common adjectives / adverbs children already know
-    "perfect","always","anyone","better","bigger","bright","broken",
-    "certain","change","clean","clever","closer","colder","coming",
-    "common","different","enjoy","enter","faster","follow","funny",
-    "gentle","getting","giving","harder","higher","honest","important",
-    "larger","louder","lower","lucky","matter","middle","minute",
-    "moment","morning","newer","older","patient","quiet","shorter",
-    "simple","slower","softer","stronger","taller","tired","trying",
-    "upper","useful","usual","warmer","weaker","wetter","wider","writing",
+    "among","around","away","because","before","below","between",
+    "during","except","from","into","itself","myself","ourselves","outside",
+    "through","toward","under","until","upon","within","without","yourself",
+    # Auxiliary / modal verbs
+    "shall","should","would","could","might","being","having","doing",
+    "going","coming","getting","taking","making","giving","bring","brings",
+    "became","become","cannot","could","shall",
+    # Very basic common verbs children already know (≤2 syllables)
+    "asked","began","bring","called","came","carried","cried","done",
+    "found","gave","gone","heard","helped","kept","knew","knows","laughed",
+    "leave","left","liked","lived","looked","loved","made","moved","named",
+    "picked","played","reach","reach","replied","said","seemed","smiled",
+    "spoke","stood","taken","talked","tried","turned","using","voice",
+    "walked","wanted","watched","whole","wished","worked",
+    # Common adjectives that every child knows (NOT story-specific vocab)
+    "ahead","already","always","anymore","anyone","around","away",
+    "before","behind","below","better","bigger","early","every",
+    "first","front","given","going","great","happy","heavy","hello",
+    "here","high","house","inside","large","later","light","little",
+    "long","maybe","might","more","most","much","myself","named",
+    "near","never","night","nothing","often","once","only","other",
+    "over","quite","ready","right","round","second","shown","since",
+    "small","sometimes","soon","start","still","things","think","times",
+    "today","together","told","truly","under","until","whole","whose",
+    "words","world","would","years","young","yours",
 })
 
 # ── Built-in vocabulary definitions ─────────────────────────────────────────
