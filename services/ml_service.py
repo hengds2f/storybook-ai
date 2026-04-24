@@ -649,6 +649,65 @@ _VOCAB_DEFINITIONS: dict[str, tuple[str, list[str]]] = {
     "fiercely":     ("with great strength, intensity, or passion",   ["very gently and softly", "very slowly", "very quietly"]),
     "solemnly":     ("in a serious and sincere way",                 ["in a funny and joking way", "very quickly", "very loudly"]),
     "wearily":      ("in a tired and exhausted way",                 ["with great energy", "very happily", "very angrily"]),
+    "swiftly":      ("very quickly, at great speed",                  ["very slowly and carefully", "very quietly", "very loudly"]),
+    "bravely":      ("in a way that shows courage and no fear",      ["in a very clumsy way", "in a very quiet way", "in a very slow way"]),
+    "softly":       ("in a quiet, gentle way",                       ["very loudly", "very quickly", "very roughly"]),
+    "slowly":       ("not quickly, taking a long time",              ["very fast", "very loudly", "in a clumsy way"]),
+    "quickly":      ("at great speed, without taking long",          ["very slowly", "very quietly", "very gently"]),
+    "suddenly":     ("happening all at once without warning",        ["very gradually over time", "with great care", "in a very slow way"]),
+    # ── More adjectives ──────────────────────────────────────────────────
+    "glowing":      ("giving off a warm, steady light",              ["making a deep rumbling sound", "sinking slowly down", "tasting very sweet"]),
+    "shadowy":      ("dark and hard to see clearly, like a shadow",  ["extremely bright and clear", "loud and echoing", "warm and comfortable"]),
+    "hollow":       ("empty inside, having nothing inside it",       ["completely solid and heavy", "bright and colourful", "smooth and flat"]),
+    "twisted":      ("bent into an unusual shape, not straight",     ["perfectly straight and neat", "very warm and soft", "bright and shiny"]),
+    "ancient":      ("very old, from a long time ago",               ["brand new and shiny", "very small and tiny", "extremely loud"]),
+    "powerful":     ("having great strength or force",               ["very weak and fragile", "very quiet and small", "very slow"]),
+    "magical":      ("having special power that seems impossible",   ["very ordinary and boring", "very heavy and solid", "quite dangerous"]),
+    "hidden":       ("kept out of sight, not easy to find",         ["placed in clear view for all", "very loud and noisy", "very large"]),
+    "withered":     ("dried up and shrunken, no longer fresh",      ["blooming and fully grown", "wet and dripping", "strong and solid"]),
+    "swirling":     ("moving in circles or spinning patterns",      ["standing perfectly still", "sinking straight down", "frozen in place"]),
+    "glittering":   ("sparkling with many small flashes of light",  ["making a very loud sound", "smelling strongly", "feeling very rough"]),
+    "towering":     ("very tall and impressive, reaching high up",  ["small and low to the ground", "wide and flat", "soft and bendable"]),
+    "jagged":       ("having sharp uneven points or edges",         ["completely smooth and flat", "soft and round", "warm and comfortable"]),
+    "crumbling":    ("slowly falling apart into small pieces",      ["getting stronger and bigger", "becoming brighter", "growing taller"]),
+    "daunting":     ("seeming very difficult, making you feel afraid to try", ["very simple and easy", "quite enjoyable", "very boring"]),
+    "precious":     ("of great value, very important or loved",     ["worthless and unimportant", "heavy and dull", "broken and useless"]),
+    "sacred":       ("holy and deserving great respect",            ["ordinary and everyday", "noisy and crowded", "old and broken"]),
+    "perilous":     ("full of danger, very risky",                  ["completely safe and easy", "very boring and dull", "warm and comfortable"]),
+    "treacherous":  ("very dangerous or likely to betray you",      ["completely safe and trustworthy", "very kind and helpful", "very slow"]),
+    "desolate":     ("empty and without life, very lonely and bleak", ["full of people and noise", "warm and welcoming", "bright and cheerful"]),
+    "withstanding": ("staying strong despite pressure or difficulty", ["giving up right away", "growing quickly", "moving far away"]),
+    # ── More nouns ───────────────────────────────────────────────────────
+    "shadow":       ("a dark shape made when something blocks light", ["a very loud sound", "a type of food", "a warm breeze"]),
+    "quest":        ("a long search or journey towards an important goal", ["a short nap", "a type of food", "a boring task"]),
+    "courage":      ("the strength to face something scary or difficult", ["the feeling of being very sleepy", "a type of food", "a short journey"]),
+    "burden":       ("a heavy load or something difficult to carry or deal with", ["something very light and easy", "a type of food", "a fun game"]),
+    "guardian":     ("someone who protects and watches over another", ["someone who ignores others", "a type of food", "a loud sound"]),
+    "ancient":      ("something very old, from a long time ago",     ["something brand new", "a type of food", "something very small"]),
+    "veil":         ("a thin covering that hides something",         ["a very loud noise", "a type of food", "a strong bright light"]),
+    "realm":        ("a kingdom or an area under someone's rule",    ["a type of food", "a small path", "a loud sound"]),
+    "gloom":        ("darkness and sadness, a feeling of low spirits", ["great happiness and light", "a type of food", "a warm summer day"]),
+    "shrine":       ("a special place considered holy and important", ["a rubbish dump", "a noisy playground", "a type of food"]),
+    "torment":      ("great physical or mental pain and suffering",   ["great happiness and comfort", "a type of food", "a quiet rest"]),
+    "triumph":      ("a great victory or achievement",               ["a terrible defeat", "a type of food", "a type of clothing"]),
+    "descent":      ("the act of going down from a higher place",   ["the act of climbing up quickly", "a type of food", "a wide open space"]),
+    "cavern":       ("a large underground cave",                     ["a tall tower", "a wide shallow river", "a flat open field"]),
+    # ── More verbs ───────────────────────────────────────────────────────
+    "whispered":    ("spoke in a very soft, quiet voice",            ["shouted as loudly as possible", "jumped very high", "ran away quickly"]),
+    "gathered":     ("came together or collected things in one place", ["spread far apart", "made a loud noise", "fell asleep"]),
+    "revealed":     ("showed or uncovered something hidden",         ["hid something more deeply", "made a loud noise", "ate quickly"]),
+    "crept":        ("moved slowly and quietly to avoid being noticed", ["ran loudly and quickly", "jumped very high", "flew away"]),
+    "snarled":      ("made an angry growling sound showing teeth",   ["sang very sweetly", "slept quietly", "floated gently"]),
+    "charged":      ("rushed forward very fast towards something",   ["backed away slowly", "sat down quietly", "floated gently"]),
+    "paused":       ("stopped for a short time before continuing",   ["rushed forward very quickly", "grew taller", "flew away"]),
+    "trembling":    ("shaking slightly with fear, cold, or excitement", ["laughing loudly", "jumping high", "sleeping deeply"]),
+    "plunged":      ("jumped or fell quickly into something",        ["rose slowly upward", "crept quietly", "floated away"]),
+    "unfolded":     ("opened out or developed gradually",            ["rolled up tightly", "disappeared suddenly", "shrank down"]),
+    "crouched":     ("bent down low with knees bent, close to the ground", ["stretched up as tall as possible", "swam quickly", "flew away"]),
+    "weaved":       ("moved in and out with twists and turns",       ["went in a straight line", "sank to the bottom", "stood still"]),
+    "clutched":     ("held on tightly, gripping firmly",            ["threw far away", "let go gently", "ignored completely"]),
+    "soaring":      ("flying or rising very high into the air",     ["sinking deep underground", "crawling very slowly", "hiding in a hole"]),
+    "racing":       ("moving very fast, rushing ahead",             ["staying perfectly still", "moving very slowly", "sleeping deeply"]),
 }
 
 
@@ -1024,23 +1083,45 @@ Return ONLY a valid JSON array — no markdown fences, no extra text:
         if not isinstance(items, list) or len(items) == 0:
             return None
 
+        # Build a lookup: provided word → canonical form (lowercase)
+        provided_lower = {w.lower(): w for w in words}
         act_text_lower = act_text.lower()
         result = []
         for item in items:
             if not all(k in item for k in ("question_text", "options", "correct_answer")):
                 continue
-            word_lower = item.get("word", "").lower().strip()
-            # Confirm the word is actually in the chapter text
-            if word_lower and word_lower not in act_text_lower:
+            word_raw = item.get("word", "").strip()
+            word_lower = word_raw.lower()
+
+            # Try to resolve back to one of the provided words.
+            # 1. Exact match in provided list
+            # 2. The provided word starts with the LLM word (e.g. provided "trembling", LLM "trembl")
+            # 3. The LLM word starts with the provided word (e.g. provided "tremble", LLM "trembled")
+            resolved = None
+            if word_lower in provided_lower:
+                resolved = word_lower
+            else:
+                for pw in provided_lower:
+                    if pw.startswith(word_lower[:5]) or word_lower.startswith(pw[:5]):
+                        resolved = pw
+                        break
+
+            # Verify the resolved word is in the chapter text (it should be — it came from the allocator)
+            if resolved and resolved in act_text_lower:
+                canonical = provided_lower[resolved]
+            elif word_lower in act_text_lower:
+                canonical = word_raw
+            else:
                 print(f"[ML] _llm_questions_for_words: '{word_lower}' not in chapter text — skipping")
                 continue
+
             if not item["question_text"].endswith("?"):
                 item["question_text"] = item["question_text"].rstrip(".") + "?"
             result.append({
                 "question_text": item["question_text"],
                 "options": item["options"][:4],
                 "correct_answer": item["correct_answer"].strip().upper(),
-                "word": item.get("word", word_lower),
+                "word": canonical,
             })
 
         return result if result else None

@@ -580,7 +580,12 @@ const Reader = (() => {
           });
           nextEl.appendChild(btn);
         } else {
-          _showVocabScore(idx);
+          // Last question — show feedback first, then a "See Your Score" button
+          const scoreBtn = document.createElement('button');
+          scoreBtn.className = 'vocab-next-btn';
+          scoreBtn.textContent = 'See Your Score 🏆';
+          scoreBtn.addEventListener('click', () => _showVocabScore(idx));
+          nextEl.appendChild(scoreBtn);
         }
       }
     } catch (e) {
