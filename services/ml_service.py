@@ -481,6 +481,20 @@ _STOP_WORDS: frozenset[str] = frozenset({
     "found","makes","comes","taken","given","shown","carry","learn",
     "stand","stood","whole","bring","going","truly","reach","begin",
     "looks","small","early","heard","happy","great","yours","could",
+    # Common everyday nouns / verbs a child already knows
+    "animals","beautiful","behind","birds","black","blue","brown","climbed",
+    "clouds","colors","colour","colors","colourful","colorful","dancing",
+    "decided","flowers","forest","green","ground","jumped","laughed",
+    "leaves","loved","loved","magic","mountains","moved","orange","picked",
+    "played","pretty","purple","queen","quickly","river","rocks","running",
+    "schools","smiled","sparkling","stones","sunlit","sunshine","swiftly",
+    "talked","trees","walked","water","white","yellow","chased","clapped",
+    "cried","danced","field","flowed","flying","glowing","grass","kingdom",
+    "lived","loved","ocean","paths","people","plants","prince","raining",
+    "riding","river","sailed","seeing","shined","shining","singing","sitting",
+    "sleeping","smelled","snowed","stood","swimming","things","towns",
+    "twinkled","valley","village","waving","winds","wishing","wondering",
+    "wooden","working","wanted",
 })
 
 
@@ -891,46 +905,28 @@ def _simple_questions_for_words(
     used_words: set,
 ) -> list[dict]:
     """
-    Fallback when the LLM is unavailable.  Builds a real MCQ for each word by:
-    1. Extracting the sentence that contains the word (so the reader has context).
-    2. Generating 4 options where one is a plausible correct category/meaning and
-       three are plausible-but-wrong categories, derived from the word's suffix.
+    Fallback when _llm_questions_for_words fails.  Tries a lightweight Gemini call
+    to get just a one-sentence definition + 3 wrong options for each word.
+    If Gemini is unavailable, builds simple definition MCQs from a small built-in
+    vocabulary map, or uses generic plausible options.
     Words are guaranteed to appear in act_text.
     """
-    import re
     act_text_lower = act_text.lower()
     result = []
     for word in words:
         word_lower = word.lower()
         if word_lower not in act_text_lower:
             continue
-
-        # Extract the sentence containing the word for use as question context
-        sentences = re.split(r'(?<=[.!?])\s+', act_text)
-        context_sentence = next(
-            (s for s in sentences if word_lower in s.lower()), ""
-        )
-        # Truncate very long sentences
-        if len(context_sentence) > 200:
-            context_sentence = context_sentence[:197] + "..."
-
-        question_text = (
-            f'In the sentence "{context_sentence}", what does the word "{word}" most likely mean?'
-            if context_sentence
-            else f'What does the word "{word}" most likely mean?'
-        )
-
-        options_list, correct_letter = _word_category_options(word_lower)
-
+        qdata = _fetch_definition_mcq(word, act_text)
         q = {
             "question_id":    str(uuid.uuid4()),
             "profile_id":     profile_id,
             "story_id":       story_id,
             "act_number":     act_number,
-            "question_text":  question_text,
+            "question_text":  f'What does the word "{word}" mean?',
             "question_type":  "vocabulary",
-            "options":        options_list,
-            "correct_answer": correct_letter,
+            "options":        qdata["options"],
+            "correct_answer": qdata["correct_answer"],
             "word":           word,
             "generated_by":   "simple_fallback",
         }
@@ -940,39 +936,83 @@ def _simple_questions_for_words(
     return result
 
 
-def _word_category_options(word: str) -> tuple[list[str], str]:
+def _fetch_definition_mcq(word: str, context_text: str) -> dict:
     """
-    Derive 4 MCQ options and a correct-answer letter for a word based on its
-    suffix, without needing a dictionary.  Used only when the LLM is unavailable.
-    Returns (["A. ...", "B. ...", "C. ...", "D. ..."], correct_letter).
+    Ask Gemini for a one-sentence definition and 3 wrong options for a single word.
+    Falls back to suffix-heuristic MCQ if Gemini is unavailable.
+    Returns {options: [...], correct_answer: letter}.
+    """
+    try:
+        import config
+        if not config.GEMINI_API_KEY:
+            raise RuntimeError("no key")
+        import google.genai as genai, re, json as _json
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        prompt = (
+            f'Define the word "{word}" in one short phrase (5-8 words, child-friendly).\n'
+            f'Then give 3 wrong but plausible short definitions (5-8 words each).\n'
+            f'Return ONLY JSON, no markdown:\n'
+            f'{{"correct": "shining with a soft glow", "wrong": ["making a loud banging sound", "moving very quickly forward", "feeling cold and shivery"]}}'
+        )
+        resp = client.models.generate_content(model=config.GEMINI_MODEL_STANDARD, contents=prompt)
+        raw = resp.text.strip()
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
+        data = _json.loads(raw)
+        correct_def = data["correct"].strip()
+        wrong_defs  = [d.strip() for d in data["wrong"][:3]]
+        letters = ["A", "B", "C", "D"]
+        correct_pos = random.randint(0, 3)
+        correct_letter = letters[correct_pos]
+        all_defs: list[str] = list(wrong_defs)
+        all_defs.insert(correct_pos, correct_def)
+        options = [f"{l}. {d[0].upper() + d[1:]}" for l, d in zip(letters, all_defs)]
+        return {"options": options, "correct_answer": correct_letter}
+    except Exception as e:
+        print(f"[ML] _fetch_definition_mcq failed for '{word}': {e}")
+        return _heuristic_mcq(word)
+
+
+def _heuristic_mcq(word: str) -> dict:
+    """
+    Last-resort MCQ when Gemini is completely unavailable.
+    Uses suffix heuristics to produce plausible definition-style options
+    rather than meta-category descriptions.
     """
     w = word.lower()
-    if w.endswith(('ness', 'tion', 'sion', 'ment', 'ance', 'ence', 'ity', 'ship', 'hood')):
-        correct = "a quality, state, or condition"
-        wrong   = ["an action or physical movement", "a place or location", "a person or character"]
-    elif w.endswith(('ful', 'ous', 'ive', 'able', 'ible', 'less', 'ish', 'some')):
-        correct = "a word that describes a quality or characteristic"
-        wrong   = ["a word that names an action", "a word that names a place", "a word that names a person"]
-    elif w.endswith(('ing', 'ened', 'ened')):
-        correct = "a word describing an ongoing action or process"
-        wrong   = ["a feeling or emotion", "a type of place", "a person or name"]
-    elif w.endswith(('edly', 'edly', 'ingly', 'ously', 'fully', 'ily')):
-        correct = "a word describing how something is done"
-        wrong   = ["a type of object or thing", "a place or setting", "a feeling or emotion"]
-    elif w.endswith(('ered', 'ened', 'ened', 'ened', 'led')):
-        correct = "a word describing a completed action"
-        wrong   = ["a quality or state", "a type of place", "a feeling"]
+    if w.endswith(('ness', 'tion', 'sion', 'ment', 'ance', 'ence', 'ity')):
+        sets = [
+            ("the state or quality of being " + w[:-4], ["a type of food", "a sudden movement", "a loud sound"]),
+            ("a feeling of " + w[:-4], ["a small creature", "a sharp object", "a type of weather"]),
+        ]
+    elif w.endswith(('ful', 'ous', 'ive', 'able', 'ible', 'less')):
+        sets = [
+            ("full of " + w[:-3] if w.endswith("ful") else "having the quality of " + w,
+             ["unable to move", "making a loud noise", "smelling bad"]),
+        ]
+    elif w.endswith('ing'):
+        sets = [
+            ("currently doing the action of " + w[:-3],
+             ["a type of food", "a piece of clothing", "a colour"]),
+        ]
+    elif w.endswith(('ed', 'ened', 'ered')):
+        sets = [
+            ("having " + w[:-2] + "ed or become " + w[:-2],
+             ["a type of animal", "a place to sleep", "something to eat"]),
+        ]
     else:
-        correct = "a word that names or describes a thing, place, or idea"
-        wrong   = ["a word describing how something moves", "a feeling or emotion", "a way of doing something"]
-
+        sets = [
+            (word + ": a special or unusual thing",
+             ["a common household item", "a type of food", "a way to travel"]),
+        ]
+    correct, wrong = random.choice(sets)
     letters = ["A", "B", "C", "D"]
     correct_pos = random.randint(0, 3)
     correct_letter = letters[correct_pos]
-    all_options: list[str] = list(wrong)  # 3 wrong items
-    all_options.insert(correct_pos, correct)
-    options_list = [f"{l}. {o[0].upper() + o[1:]}" for l, o in zip(letters, all_options)]
-    return options_list, correct_letter
+    all_defs: list[str] = list(wrong[:3])
+    all_defs.insert(correct_pos, correct)
+    options = [f"{l}. {d[0].upper() + d[1:]}" for l, d in zip(letters, all_defs)]
+    return {"options": options, "correct_answer": correct_letter}
 
 
 def _llm_generate_vocab_questions(
