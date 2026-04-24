@@ -16,6 +16,12 @@ const Reader = (() => {
   const _questions = new Map(); // sectionIdx → { questionId, startTime }
   const _vocabState = new Map(); // sectionIdx → { ids[], curr, correct, startTime }
 
+  // Extract the leading letter from "A. option text" → "A". Falls back to the raw value.
+  function _optionLetter(opt) {
+    const m = (opt || '').trim().match(/^([A-D])\./i);
+    return m ? m[1].toUpperCase() : opt.trim().toUpperCase();
+  }
+
   const CHAPTER_ICONS = {
     'Introduction': ['🌅', '📖', '🌟'],
     'Challenge': ['⚡', '🌊', '🎭'],
@@ -412,7 +418,7 @@ const Reader = (() => {
         body: JSON.stringify({
           profile_id:       story.profile_id,
           session_id:       readerSessionId,
-          answer:           answer,
+          answer:           _optionLetter(answer),
           response_time_ms: responseTimeMs,
         }),
       });
@@ -528,7 +534,7 @@ const Reader = (() => {
         body: JSON.stringify({
           profile_id:       story.profile_id,
           session_id:       readerSessionId,
-          answer:           answer,
+          answer:           _optionLetter(answer),
           response_time_ms: responseTimeMs,
         }),
       });
