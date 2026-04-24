@@ -388,10 +388,16 @@ def generate_vocab_questions(
     act_text: str,
     age_group: str,
     n: int = VOCAB_QUESTIONS_PER_SECTION,
+    used_words: set | None = None,
 ) -> list[dict]:
     """
     Extract challenge words from the story section and generate vocabulary MCQ
     questions to test whether the reader knows each word's meaning.
+
+    ``used_words`` is a mutable set of lowercase word strings already asked in
+    earlier chapters of this story. Words in the set are excluded so every chapter
+    gets unique vocabulary questions. The set is updated in-place with the words
+    chosen for this chapter.
 
     Tries LLM generation first (returns up to `n` questions).
     Falls back to rule-based templates using pre-defined word lists.
@@ -401,8 +407,11 @@ def generate_vocab_questions(
     Returns:
         List of saved question dicts, each with question_id.
     """
+    if used_words is None:
+        used_words = set()
+
     # Try LLM path first
-    llm_questions = _llm_generate_vocab_questions(act_text, age_group, n)
+    llm_questions = _llm_generate_vocab_questions(act_text, age_group, n, used_words)
     if llm_questions:
         saved = []
         for qdata in llm_questions[:n]:
@@ -416,11 +425,12 @@ def generate_vocab_questions(
             })
             save_question(qdata)
             saved.append(qdata)
+            used_words.add(qdata.get("word", "").lower())
         return saved
 
     # Rule-based fallback — pick words the text actually contains when possible,
     # then supplement from the age-group word bank.
-    return _rule_based_vocab_questions(profile_id, story_id, act_number, act_text, age_group, n)
+    return _rule_based_vocab_questions(profile_id, story_id, act_number, act_text, age_group, n, used_words)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -664,10 +674,18 @@ def _vocab_score_label(score: float) -> str:
     return "Advanced"
 
 
-def _llm_generate_vocab_questions(act_text: str, age_group: str, n: int) -> list[dict] | None:
+def _llm_generate_vocab_questions(
+    act_text: str,
+    age_group: str,
+    n: int,
+    used_words: set | None = None,
+) -> list[dict] | None:
     """
     Ask Gemini to identify challenge words in the text and create n vocabulary MCQ
     questions. Returns a list of question dicts or None on any failure.
+
+    ``used_words`` (lowercase) are excluded from selection so earlier-chapter words
+    are never repeated.
     """
     try:
         import config
@@ -679,16 +697,25 @@ def _llm_generate_vocab_questions(act_text: str, age_group: str, n: int) -> list
 
         client = genai.Client(api_key=config.GEMINI_API_KEY)
 
+        exclusion_note = ""
+        if used_words:
+            words_list = ", ".join(sorted(used_words))
+            exclusion_note = (
+                f"\nIMPORTANT: The following words have already been used in earlier chapters "
+                f"of this story. Do NOT pick any of them: {words_list}\n"
+            )
+
         prompt = f"""You are a vocabulary tutor for children aged {age_group}.
 
 Story excerpt:
 \"\"\"
 {act_text[:1200]}
 \"\"\"
-
-Task: Identify {n} words from this text that are good vocabulary teaching words for age {age_group}.
+{exclusion_note}
+Task: Identify {n} DIFFERENT words from this text that are good vocabulary teaching words for age {age_group}.
 Pick words that appear in the text and that children might not know yet.
 Avoid names, very simple words (the, and, was, big, etc.), and very obscure words.
+Each word must be unique — do not repeat any word across the {n} questions.
 
 For each word, write a multiple-choice question asking what the word means.
 Use 4 options (A, B, C, D). One option must be the correct definition. The others are plausible but wrong.
@@ -709,7 +736,8 @@ Rules:
 - Every question_text must include the word and end with a question mark
 - All options must start with "A.", "B.", "C.", or "D."
 - Language must suit age {age_group}
-- No scary, violent, or inappropriate content"""
+- No scary, violent, or inappropriate content
+- All {n} words must be different from each other and from any previously excluded words"""
 
         response = client.models.generate_content(
             model=config.GEMINI_MODEL_STANDARD,
@@ -724,9 +752,19 @@ Rules:
             return None
 
         result = []
-        for item in items[:n]:
+        seen_this_batch: set = set()
+        for item in items:
+            if len(result) >= n:
+                break
             if not all(k in item for k in ("question_text", "options", "correct_answer")):
                 continue
+            word_lower = item.get("word", "").lower().strip()
+            # Skip if this word was already used in a previous chapter or this batch
+            if used_words and word_lower in used_words:
+                continue
+            if word_lower in seen_this_batch:
+                continue
+            seen_this_batch.add(word_lower)
             if not item["question_text"].endswith("?"):
                 item["question_text"] = item["question_text"].rstrip(".") + "?"
             result.append({
@@ -750,19 +788,35 @@ def _rule_based_vocab_questions(
     act_text: str,
     age_group: str,
     n: int,
+    used_words: set | None = None,
 ) -> list[dict]:
     """
     Build vocabulary questions from the pre-defined word bank.
     Preferentially uses words that actually appear in act_text.
+    Words already in ``used_words`` (from previous chapters) are excluded.
+    The set is updated in-place with the words chosen here.
     """
+    if used_words is None:
+        used_words = set()
+
     bank = _FALLBACK_VOCAB.get(age_group, _FALLBACK_VOCAB["6-8"])
     text_lower = act_text.lower()
 
+    # Exclude words already used in earlier chapters of this story
+    available = [entry for entry in bank if entry[0].lower() not in used_words]
+
     # Sort: words found in text come first, then random others
-    in_text  = [entry for entry in bank if entry[0].lower() in text_lower]
-    not_text = [entry for entry in bank if entry[0].lower() not in text_lower]
+    in_text  = [entry for entry in available if entry[0].lower() in text_lower]
+    not_text = [entry for entry in available if entry[0].lower() not in text_lower]
     random.shuffle(not_text)
     ordered = (in_text + not_text)[:n]
+
+    # If the available pool is smaller than n, cycle through the full bank
+    # (all chapters used up — start fresh so we never produce zero questions)
+    if len(ordered) < n:
+        fallback = [entry for entry in bank if entry[0].lower() not in {e[0].lower() for e in ordered}]
+        random.shuffle(fallback)
+        ordered = (ordered + fallback)[: n]
 
     letters = ["A", "B", "C", "D"]
     questions = []
@@ -794,6 +848,7 @@ def _rule_based_vocab_questions(
         }
         save_question(q)
         questions.append(q)
+        used_words.add(word.lower())  # mark as used for subsequent chapters
 
     return questions
 

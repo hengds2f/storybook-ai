@@ -161,6 +161,10 @@ def _generate_act_questions(profile_id: str, story_id: str, sections: list, para
         "Moral":        8,
     }
 
+    # Shared set of used words across all chapters — ensures every chapter's
+    # vocabulary questions are unique throughout the entire story.
+    story_used_words: set = set()
+
     for section in sections:
         title = section.get("title", "")
         if title not in _VOCAB_SECTIONS:
@@ -177,10 +181,12 @@ def _generate_act_questions(profile_id: str, story_id: str, sections: list, para
                 act_text=act_text,
                 age_group=age_group,
                 n=VOCAB_QUESTIONS_PER_SECTION,
+                used_words=story_used_words,  # passed by reference; updated in-place
             )
             section["question_ids"] = [q["question_id"] for q in questions]
             section["question_type"] = "vocabulary"
-            print(f"[BG_TASK] {len(questions)} vocab questions for '{title}': "
-                  f"{[q['question_id'][:8] for q in questions]}")
+            print(f"[BG_TASK] {len(questions)} vocab questions for '{title}' "
+                  f"(used pool now {len(story_used_words)} words): "
+                  f"{[q.get('word', q['question_id'][:8]) for q in questions]}")
         except Exception as e:
             print(f"[BG_TASK] Vocab question generation failed for '{title}' (non-fatal): {e}")
