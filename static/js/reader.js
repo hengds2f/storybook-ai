@@ -418,23 +418,31 @@ const Reader = (() => {
       const data = await res.json();
 
       // Colour correct / incorrect options
+      // data.correct_answer is a letter ("A"/"B"/"C") — match against "A. option text"
+      const correctLetter = (data.correct_answer || '').trim().toUpperCase();
+      let correctFullText = '';
       if (optsEl) {
         optsEl.querySelectorAll('.question-option').forEach(btn => {
-          if (btn.textContent.trim() === (data.correct_answer || '').trim()) {
+          const btnTxt = btn.textContent.trim();
+          if (correctLetter && btnTxt.toUpperCase().startsWith(correctLetter + '.')) {
             btn.classList.add('correct');
-          } else if (btn.textContent.trim() === answer.trim() && !data.is_correct) {
+            correctFullText = btnTxt;
+          } else if (btnTxt === answer.trim() && !data.is_correct) {
             btn.classList.add('incorrect');
           }
         });
       }
 
-      // Show feedback
+      // Show feedback — append the full correct option text when the answer was wrong
       const feedbackEl = document.getElementById(`q-feedback-${idx}`);
       if (feedbackEl) {
         feedbackEl.style.display = 'block';
         feedbackEl.className = `question-feedback ${data.is_correct ? 'correct' : 'incorrect'}`;
-        feedbackEl.textContent = data.feedback
-          || (data.is_correct ? '✅ Correct!' : '❌ Not quite — keep reading!');
+        let msg = data.feedback || (data.is_correct ? '✅ Correct!' : '❌ Not quite — keep reading!');
+        if (!data.is_correct && correctFullText) {
+          msg += ' ' + correctFullText;
+        }
+        feedbackEl.textContent = msg;
       }
     } catch (e) {
       console.error('Failed to submit answer:', e);

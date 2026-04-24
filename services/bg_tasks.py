@@ -6,8 +6,13 @@ from services.llm_service import generate_story_8act, count_words
 from services.story_builder import parse_story
 from services.image_service import generate_image
 
-# Acts that get interactive questions generated after the story is saved
-_QUESTION_ACTS = {3, 5, 8}
+# Section titles that trigger interactive questions and their question types
+# Maps section title → (question_type, act_number_for_db)
+_SECTION_QUESTION_MAP = {
+    "Introduction": ("comprehension", 2),  # comprehension after setup
+    "Challenge":    ("prediction",    5),  # predict what comes next
+    "Moral":        ("reflection",    8),  # reflect on the lesson
+}
 
 def start_story_generation_thread(task_id: str, app: Flask):
     """Spawn a background thread to generate a story."""
@@ -147,23 +152,22 @@ def _word_count_for_age(age_group: str) -> int:
 
 def _generate_act_questions(profile_id: str, story_id: str, sections: list, params: dict):
     """
-    Pre-generate questions for acts 3, 5, 8 and attach question_id to the section.
-    Questions are stored in question_log; the frontend can fetch them by story_id.
-    Silently skips on any failure.
+    Pre-generate questions for Introduction, Challenge, and Moral sections and
+    attach question_id to each section so the reader can show it.
+    Each section is handled independently — a failure for one does not block others.
     """
-    try:
-        from services.ml_service import generate_question, QUESTION_ACT_TRIGGERS
-        age_group = params.get("age_group", "6-8")
+    from services.ml_service import generate_question
+    age_group = params.get("age_group", "6-8")
 
-        # Map section index → act number (sections are 0-indexed, acts 1-indexed)
-        for idx, section in enumerate(sections):
-            act_number = idx + 1
-            if act_number not in _QUESTION_ACTS:
-                continue
-            act_text = section.get("content", "") or section.get("text", "")
-            if not act_text or len(act_text) < 50:
-                continue
-            question_type = QUESTION_ACT_TRIGGERS.get(act_number, "comprehension")
+    for section in sections:
+        title = section.get("title", "")
+        if title not in _SECTION_QUESTION_MAP:
+            continue
+        question_type, act_number = _SECTION_QUESTION_MAP[title]
+        act_text = section.get("content", "") or section.get("text", "")
+        if not act_text or len(act_text) < 50:
+            continue
+        try:
             q = generate_question(
                 profile_id=profile_id,
                 story_id=story_id,
@@ -176,6 +180,6 @@ def _generate_act_questions(profile_id: str, story_id: str, sections: list, para
             # Attach question_id to the section so the reader can show it
             section["question_id"] = q["question_id"]
             section["question_type"] = q["question_type"]
-            print(f"[BG_TASK] Question generated for act {act_number}: {q['question_id']}")
-    except Exception as e:
-        print(f"[BG_TASK] Question generation failed (non-fatal): {e}")
+            print(f"[BG_TASK] Question generated for section '{title}' (act {act_number}): {q['question_id']}")
+        except Exception as e:
+            print(f"[BG_TASK] Question generation failed for section '{title}' (non-fatal): {e}")
