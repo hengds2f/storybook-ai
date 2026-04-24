@@ -201,11 +201,29 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
 
     title = act_titles[act_number - 1]
 
+    # ── ML personalisation hints ──────────────────────────────────────────
+    complexity_hint  = params.get("complexity_hint", "moderate")
+    vocabulary_hint  = params.get("vocabulary_hint", "grade_level")
+
+    _complexity_note = {
+        "simple":   "Use very short sentences, simple words, and lots of repetition. Avoid complex ideas.",
+        "moderate": "Use clear sentences with some descriptive language. Introduce one or two new vocabulary words naturally.",
+        "rich":     "Use varied sentence lengths, sophisticated vocabulary, figurative language, and complex ideas.",
+    }.get(complexity_hint, "")
+
+    _vocab_note = {
+        "introductory": "Stick to everyday words a 3–5 year old knows. Avoid multi-syllable words.",
+        "grade_level":  "Use vocabulary appropriate for the child's grade. Introduce 1–2 slightly challenging words with context clues.",
+        "stretch":      "Include richer, more sophisticated vocabulary. Children should need to infer some word meanings from context.",
+    }.get(vocabulary_hint, "")
+
     prompt = f"""You are a master children's storyteller, writing with the charm, wisdom, and whimsicality of C.S. Lewis. We are writing a story with a total length of roughly {cfg['story_word_count']} words set in a world as magical as Narnia.
 
     CONTEXT:
     - Target Audience: {cfg['label']}
     - Vocabulary & Styles: {cfg['vocabulary']}
+    - Complexity Level: {complexity_hint.upper()} — {_complexity_note}
+    - Vocabulary Level: {vocabulary_hint.upper()} — {_vocab_note}
     - Sub-Genre: {s['genre']}
     - Atmosphere: {s['atm']} (Ensure it feels magical, ancient, and wonder-filled)
     - ALL CHARACTERS (every single one MUST appear and speak or act in this segment, behaving with the dignity of heroes or the curiosity of children):

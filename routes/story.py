@@ -28,14 +28,33 @@ def generate():
     if not profile or profile["user_id"] != session["user_id"]:
         return jsonify({"error": "Profile not found"}), 404
 
-    # Build parameters dict
+    age_group = data.get("age_group", profile.get("age_group", "6-8"))
+
+    # ── ML personalisation: fetch recommendations for this profile ──────────
+    # If the user explicitly supplied theme/setting, respect that (manual override).
+    # Otherwise, use ML-recommended values.
+    from services.ml_service import recommend_story_params
+    ml_rec = recommend_story_params(profile_id, age_group)
+
+    user_supplied_theme   = data.get("theme", "").strip()
+    user_supplied_setting = data.get("setting", "").strip()
+
+    theme   = user_supplied_theme   or ml_rec["theme"]
+    setting = user_supplied_setting or ml_rec["setting"]
+
+    # Build parameters dict — ML hints are passed through to the prompt builder
     params = {
-        "profile_id": profile_id,
-        "age_group": data.get("age_group", profile.get("age_group", "6-8")),
-        "characters": data.get("characters", []),
-        "setting": data.get("setting", "an enchanted forest"),
-        "theme": data.get("theme", "friendship"),
-        "moral": data.get("moral", ""),
+        "profile_id":       profile_id,
+        "age_group":        ml_rec["age_group"],   # ML may nudge age_group up/down one level
+        "characters":       data.get("characters", []),
+        "setting":          setting,
+        "theme":            theme,
+        "moral":            data.get("moral", ""),
+        # ML hints consumed by story_builder.build_8act_prompts
+        "complexity_hint":  ml_rec["complexity_hint"],
+        "vocabulary_hint":  ml_rec["vocabulary_hint"],
+        "ml_cold_start":    ml_rec["cold_start"],
+        "ml_confidence":    ml_rec["confidence"],
     }
 
     # Ensure at least one character
@@ -48,14 +67,22 @@ def generate():
 
     # Create background task
     task = create_story_task(session["user_id"], profile_id, params)
-    
+
     # Start thread (passing real app object for context)
     start_story_generation_thread(task["id"], current_app._get_current_object())
 
     return jsonify({
         "success": True,
         "task_id": task["id"],
-        "message": "Story generation started in background."
+        "message": "Story generation started in background.",
+        "ml_applied": {
+            "theme":           theme,
+            "setting":         setting,
+            "age_group":       params["age_group"],
+            "complexity_hint": params["complexity_hint"],
+            "cold_start":      ml_rec["cold_start"],
+            "confidence":      ml_rec["confidence"],
+        },
     }), 202
 
 
