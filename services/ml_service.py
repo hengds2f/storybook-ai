@@ -701,43 +701,49 @@ def _llm_generate_vocab_questions(
         if used_words:
             words_list = ", ".join(sorted(used_words))
             exclusion_note = (
-                f"\nIMPORTANT: The following words have already been used in earlier chapters "
-                f"of this story. Do NOT pick any of them: {words_list}\n"
+                f"\nEXCLUDED WORDS (already used in earlier chapters — do NOT use these): {words_list}\n"
             )
 
-        prompt = f"""You are a vocabulary tutor for children aged {age_group}.
+        # Send up to 4000 chars so the LLM has the full chapter context
+        chapter_excerpt = act_text[:4000]
 
-Story excerpt:
+        prompt = f"""You are a vocabulary teacher creating quiz questions for children aged {age_group}.
+
+Below is the EXACT chapter text:
 \"\"\"
-{act_text[:1200]}
+{chapter_excerpt}
 \"\"\"
 {exclusion_note}
-Task: Identify {n} DIFFERENT words from this text that are good vocabulary teaching words for age {age_group}.
-Pick words that appear in the text and that children might not know yet.
-Avoid names, very simple words (the, and, was, big, etc.), and very obscure words.
-Each word must be unique — do not repeat any word across the {n} questions.
+Your job: Find {n} teaching words in the chapter text above.
 
-For each word, write a multiple-choice question asking what the word means.
-Use 4 options (A, B, C, D). One option must be the correct definition. The others are plausible but wrong.
-Vary which letter is correct across questions.
+STRICT RULES for choosing words:
+1. The word MUST appear verbatim (exactly as written) somewhere in the chapter text above.
+   Copy it exactly — lowercase, as it appears.
+2. Do NOT use names of people, places, or animals.
+3. Do NOT use very simple words (a, the, is, was, big, run, etc.).
+4. Do NOT use any word from the EXCLUDED WORDS list.
+5. Every word must be different from all others in your list.
+6. Pick words a child aged {age_group} might not know — good teaching words.
 
-Return ONLY a valid JSON array with exactly {n} objects, no other text:
+For each word write one multiple-choice question (4 options A/B/C/D).
+One option is the correct definition; the others are plausible but wrong.
+Vary which letter is correct.
+
+Return ONLY a valid JSON array — no explanation, no markdown fences:
 [
   {{
     "word": "gleaming",
     "question_text": "In the story, what does the word \\"gleaming\\" mean?",
     "options": ["A. Making a loud noise", "B. Shining brightly", "C. Moving very fast", "D. Feeling sad"],
     "correct_answer": "B"
-  }},
-  ...
+  }}
 ]
 
-Rules:
-- Every question_text must include the word and end with a question mark
-- All options must start with "A.", "B.", "C.", or "D."
-- Language must suit age {age_group}
-- No scary, violent, or inappropriate content
-- All {n} words must be different from each other and from any previously excluded words"""
+Reminders:
+- question_text must include the word and end with ?
+- Options must start with A. B. C. D.
+- Language suitable for age {age_group}
+- No scary, violent, or inappropriate content"""
 
         response = client.models.generate_content(
             model=config.GEMINI_MODEL_STANDARD,
@@ -751,6 +757,7 @@ Rules:
         if not isinstance(items, list) or len(items) == 0:
             return None
 
+        act_text_lower = act_text.lower()
         result = []
         seen_this_batch: set = set()
         for item in items:
@@ -759,9 +766,17 @@ Rules:
             if not all(k in item for k in ("question_text", "options", "correct_answer")):
                 continue
             word_lower = item.get("word", "").lower().strip()
-            # Skip if this word was already used in a previous chapter or this batch
-            if used_words and word_lower in used_words:
+            if not word_lower:
                 continue
+            # Hard check: word must actually appear in this chapter's text
+            if word_lower not in act_text_lower:
+                print(f"[ML] LLM returned word '{word_lower}' not found in chapter text — skipping")
+                continue
+            # Hard check: word must not have been used in a previous chapter
+            if word_lower in used_words:
+                print(f"[ML] LLM returned already-used word '{word_lower}' — skipping")
+                continue
+            # Hard check: no intra-batch duplicates
             if word_lower in seen_this_batch:
                 continue
             seen_this_batch.add(word_lower)
@@ -802,21 +817,14 @@ def _rule_based_vocab_questions(
     bank = _FALLBACK_VOCAB.get(age_group, _FALLBACK_VOCAB["6-8"])
     text_lower = act_text.lower()
 
-    # Exclude words already used in earlier chapters of this story
-    available = [entry for entry in bank if entry[0].lower() not in used_words]
-
-    # Sort: words found in text come first, then random others
-    in_text  = [entry for entry in available if entry[0].lower() in text_lower]
-    not_text = [entry for entry in available if entry[0].lower() not in text_lower]
-    random.shuffle(not_text)
-    ordered = (in_text + not_text)[:n]
-
-    # If the available pool is smaller than n, cycle through the full bank
-    # (all chapters used up — start fresh so we never produce zero questions)
-    if len(ordered) < n:
-        fallback = [entry for entry in bank if entry[0].lower() not in {e[0].lower() for e in ordered}]
-        random.shuffle(fallback)
-        ordered = (ordered + fallback)[: n]
+    # Only use words that actually appear in the chapter text AND haven't been used yet.
+    # This guarantees readers can infer the meaning from the chapter they just read.
+    in_text = [
+        entry for entry in bank
+        if entry[0].lower() in text_lower and entry[0].lower() not in used_words
+    ]
+    random.shuffle(in_text)
+    ordered = in_text[:n]
 
     letters = ["A", "B", "C", "D"]
     questions = []
