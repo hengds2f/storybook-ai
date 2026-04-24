@@ -495,6 +495,7 @@ def allocate_story_vocab_words(
     Guarantees:
     - Every returned word appears verbatim (lowercase) in its section's text.
     - No word is assigned to more than one section.
+    - Proper nouns (character/place names) are excluded.
     - Words are chosen by frequency within the section (most-used first),
       then by length (longer = more likely to be a good teaching word).
 
@@ -505,20 +506,31 @@ def allocate_story_vocab_words(
     import re
 
     # Build per-section word frequency tables
-    section_data: dict[str, tuple[str, dict[str, int]]] = {}  # title -> (text_lower, freq)
+    section_data: dict[str, tuple[str, dict[str, int], set[str]]] = {}
     for section in sections:
         title = section.get("title", "")
         text = section.get("content", "") or section.get("text", "")
         if not text:
             continue
         text_lower = text.lower()
-        # Extract all purely alphabetic tokens of 5+ chars, already lowercased
+
+        # Detect proper nouns: words that appear capitalised mid-sentence
+        # (i.e. NOT immediately after a sentence-ending . ! ? or at start of text).
+        # These are almost certainly character/place names.
+        proper_nouns: set[str] = set()
+        for m in re.finditer(r'(?<=[a-z,;:\-]\s)([A-Z][a-z]{3,})\b', text):
+            proper_nouns.add(m.group(1).lower())
+        # Also catch names that appear at the very start of a quoted/dialogue line
+        for m in re.finditer(r'(?:"\s*|\u2018\s*|\u201c\s*)([A-Z][a-z]{3,})\b', text):
+            proper_nouns.add(m.group(1).lower())
+
+        # Extract all purely alphabetic tokens of 5+ chars
         tokens = re.findall(r'\b[a-z]{5,}\b', text_lower)
         freq: dict[str, int] = {}
         for w in tokens:
-            if w not in _STOP_WORDS:
+            if w not in _STOP_WORDS and w not in proper_nouns:
                 freq[w] = freq.get(w, 0) + 1
-        section_data[title] = (text_lower, freq)
+        section_data[title] = (text_lower, freq, proper_nouns)
 
     global_used: set[str] = set()
     result: dict[str, list[str]] = {}
@@ -527,10 +539,7 @@ def allocate_story_vocab_words(
         title = section.get("title", "")
         if title not in section_data:
             continue
-        _text_lower, freq = section_data[title]
-        # Candidates: words not yet allocated to an earlier section, sorted
-        # by frequency desc then length desc so the most chapter-specific,
-        # interesting words come first.
+        _text_lower, freq, _proper_nouns = section_data[title]
         candidates = sorted(
             [(w, c) for w, c in freq.items() if w not in global_used],
             key=lambda x: (-x[1], -len(x[0])),
@@ -882,36 +891,88 @@ def _simple_questions_for_words(
     used_words: set,
 ) -> list[dict]:
     """
-    Fallback when the LLM is unavailable.  Generates a minimal open-ended
-    question for each word so the reader is at least prompted to think about it.
+    Fallback when the LLM is unavailable.  Builds a real MCQ for each word by:
+    1. Extracting the sentence that contains the word (so the reader has context).
+    2. Generating 4 options where one is a plausible correct category/meaning and
+       three are plausible-but-wrong categories, derived from the word's suffix.
     Words are guaranteed to appear in act_text.
     """
+    import re
     act_text_lower = act_text.lower()
     result = []
     for word in words:
-        if word.lower() not in act_text_lower:
-            continue  # safety: only use words confirmed in text
+        word_lower = word.lower()
+        if word_lower not in act_text_lower:
+            continue
+
+        # Extract the sentence containing the word for use as question context
+        sentences = re.split(r'(?<=[.!?])\s+', act_text)
+        context_sentence = next(
+            (s for s in sentences if word_lower in s.lower()), ""
+        )
+        # Truncate very long sentences
+        if len(context_sentence) > 200:
+            context_sentence = context_sentence[:197] + "..."
+
+        question_text = (
+            f'In the sentence "{context_sentence}", what does the word "{word}" most likely mean?'
+            if context_sentence
+            else f'What does the word "{word}" most likely mean?'
+        )
+
+        options_list, correct_letter = _word_category_options(word_lower)
+
         q = {
             "question_id":    str(uuid.uuid4()),
             "profile_id":     profile_id,
             "story_id":       story_id,
             "act_number":     act_number,
-            "question_text":  f'What does the word "{word}" mean in this chapter?',
+            "question_text":  question_text,
             "question_type":  "vocabulary",
-            "options": [
-                "A. I know exactly what it means",
-                "B. I have a rough idea",
-                "C. I have seen it before but am not sure",
-                "D. I do not know this word",
-            ],
-            "correct_answer": "A",
+            "options":        options_list,
+            "correct_answer": correct_letter,
             "word":           word,
             "generated_by":   "simple_fallback",
         }
         save_question(q)
         result.append(q)
-        used_words.add(word.lower())
+        used_words.add(word_lower)
     return result
+
+
+def _word_category_options(word: str) -> tuple[list[str], str]:
+    """
+    Derive 4 MCQ options and a correct-answer letter for a word based on its
+    suffix, without needing a dictionary.  Used only when the LLM is unavailable.
+    Returns (["A. ...", "B. ...", "C. ...", "D. ..."], correct_letter).
+    """
+    w = word.lower()
+    if w.endswith(('ness', 'tion', 'sion', 'ment', 'ance', 'ence', 'ity', 'ship', 'hood')):
+        correct = "a quality, state, or condition"
+        wrong   = ["an action or physical movement", "a place or location", "a person or character"]
+    elif w.endswith(('ful', 'ous', 'ive', 'able', 'ible', 'less', 'ish', 'some')):
+        correct = "a word that describes a quality or characteristic"
+        wrong   = ["a word that names an action", "a word that names a place", "a word that names a person"]
+    elif w.endswith(('ing', 'ened', 'ened')):
+        correct = "a word describing an ongoing action or process"
+        wrong   = ["a feeling or emotion", "a type of place", "a person or name"]
+    elif w.endswith(('edly', 'edly', 'ingly', 'ously', 'fully', 'ily')):
+        correct = "a word describing how something is done"
+        wrong   = ["a type of object or thing", "a place or setting", "a feeling or emotion"]
+    elif w.endswith(('ered', 'ened', 'ened', 'ened', 'led')):
+        correct = "a word describing a completed action"
+        wrong   = ["a quality or state", "a type of place", "a feeling"]
+    else:
+        correct = "a word that names or describes a thing, place, or idea"
+        wrong   = ["a word describing how something moves", "a feeling or emotion", "a way of doing something"]
+
+    letters = ["A", "B", "C", "D"]
+    correct_pos = random.randint(0, 3)
+    correct_letter = letters[correct_pos]
+    all_options: list[str] = list(wrong)  # 3 wrong items
+    all_options.insert(correct_pos, correct)
+    options_list = [f"{l}. {o[0].upper() + o[1:]}" for l, o in zip(letters, all_options)]
+    return options_list, correct_letter
 
 
 def _llm_generate_vocab_questions(
