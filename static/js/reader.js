@@ -65,25 +65,28 @@ const Reader = (() => {
       .filter(v => !usedNames.has(v.name))
       .slice(0, Math.max(0, 10 - females.length - males.length));
 
-    let html = '<option value="">🎙 Auto</option>';
+    const OPT_STYLE  = 'color:#111111;background:#ffffff;';
+    const GRP_STYLE  = 'color:#444444;background:#f5f5f5;';
+
+    let html = `<option value="" style="${OPT_STYLE}">🎙 Auto</option>`;
     if (females.length) {
-      html += '<optgroup label="👩 Female">';
+      html += `<optgroup label="👩 Female" style="${GRP_STYLE}">`;
       females.forEach(v => {
-        html += `<option value="${v.name}">${_shortVoiceName(v.name)}</option>`;
+        html += `<option value="${v.name}" style="${OPT_STYLE}">${_shortVoiceName(v.name)}</option>`;
       });
       html += '</optgroup>';
     }
     if (males.length) {
-      html += '<optgroup label="👨 Male">';
+      html += `<optgroup label="👨 Male" style="${GRP_STYLE}">`;
       males.forEach(v => {
-        html += `<option value="${v.name}">${_shortVoiceName(v.name)}</option>`;
+        html += `<option value="${v.name}" style="${OPT_STYLE}">${_shortVoiceName(v.name)}</option>`;
       });
       html += '</optgroup>';
     }
     if (extra.length) {
-      html += '<optgroup label="🎙 Other">';
+      html += `<optgroup label="🎙 Other" style="${GRP_STYLE}">`;
       extra.forEach(v => {
-        html += `<option value="${v.name}">${_shortVoiceName(v.name)}</option>`;
+        html += `<option value="${v.name}" style="${OPT_STYLE}">${_shortVoiceName(v.name)}</option>`;
       });
       html += '</optgroup>';
     }
