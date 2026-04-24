@@ -8,6 +8,7 @@ const Builder = (() => {
   let characters = [{ name: '', traits: [] }];
   let selectedProfileId = null;
   let selectedColor = '#6366f1';
+  let mlRec = null;  // cached ML recommendation for currently selected profile
 
   const AVATAR_COLORS = [
     '#6366f1', '#a855f7', '#ec4899', '#f59e0b',
@@ -104,7 +105,24 @@ const Builder = (() => {
     document.querySelectorAll('.profile-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.profileId === profileId);
     });
-    updatePreview();
+    updatePreview(); // immediate render before ML data arrives
+    // Fetch ML recommendation in background and update preview when ready
+    _fetchMlRecommendation(profileId);
+  }
+
+  async function _fetchMlRecommendation(profileId) {
+    if (!profileId || !App.isAuthenticated()) { mlRec = null; return; }
+    try {
+      const res = await fetch(`/api/ml/recommend/${encodeURIComponent(profileId)}`);
+      if (res.ok) {
+        mlRec = await res.json();
+      } else {
+        mlRec = null;
+      }
+    } catch (e) {
+      mlRec = null;
+    }
+    updatePreview(); // re-render now that ML data is available
   }
 
   function openAddProfile() {
@@ -264,10 +282,10 @@ const Builder = (() => {
     document.getElementById('prevCharacters').textContent =
       charNames.length > 0 ? charNames.join(', ') : '—';
 
-    // Setting
+    // Setting — empty string means "AI Recommends"
     const settingSelect = document.getElementById('settingSelect');
     const customSetting = document.getElementById('customSetting');
-    let setting = settingSelect?.value || '';
+    let setting = settingSelect?.value ?? '';
     if (setting === 'custom') {
       setting = customSetting?.value || 'Custom setting';
     }
@@ -282,19 +300,32 @@ const Builder = (() => {
       'a futuristic robot city': '🤖 Robot City',
       'a rainbow cloud kingdom': '🌈 Cloud Kingdom'
     };
-    document.getElementById('prevSetting').textContent =
-      settingLabels[setting] || setting || '—';
+    let settingDisplay;
+    if (setting === '') {
+      const mlSetting = mlRec?.recommendation?.setting;
+      settingDisplay = mlSetting ? `🤖 AI picks: ${mlSetting}` : '🤖 AI Recommends';
+    } else {
+      settingDisplay = settingLabels[setting] || setting || '—';
+    }
+    document.getElementById('prevSetting').textContent = settingDisplay;
 
-    // Theme
+    // Theme — empty string means "AI Recommends"
     const themeSelect = document.getElementById('themeSelect');
-    const themeVal = themeSelect?.value || '';
+    const themeVal = themeSelect?.value ?? '';
     const themeLabels = {
       friendship: '💛 Friendship', courage: '🦁 Courage', honesty: '🌟 Honesty',
       kindness: '💗 Kindness', perseverance: '💪 Perseverance', sharing: '🎁 Sharing',
       teamwork: '🏆 Teamwork', respect: '🌸 Respect', creativity: '🎨 Creativity',
       curiosity: '🔭 Curiosity'
     };
-    document.getElementById('prevTheme').textContent = themeLabels[themeVal] || themeVal || '—';
+    let themeDisplay;
+    if (themeVal === '') {
+      const mlTheme = mlRec?.recommendation?.theme;
+      themeDisplay = mlTheme ? `🤖 AI picks: ${mlTheme}` : '🤖 AI Recommends';
+    } else {
+      themeDisplay = themeLabels[themeVal] || themeVal || '—';
+    }
+    document.getElementById('prevTheme').textContent = themeDisplay;
 
     // Age
     const ageVal = document.querySelector('input[name="ageGroup"]:checked')?.value || '6-8';
@@ -304,6 +335,29 @@ const Builder = (() => {
     // Moral
     const moral = document.getElementById('moralInput')?.value?.trim();
     document.getElementById('prevMoral').textContent = moral || '—';
+
+    // ML personalisation row
+    const mlRow  = document.getElementById('prevMlRow');
+    const mlInfo = document.getElementById('prevMlInfo');
+    if (mlRow && mlInfo) {
+      if (mlRec && selectedProfileId) {
+        mlRow.style.display = '';
+        const complexity = mlRec.recommendation?.complexity_hint || 'moderate';
+        const vocabHint  = mlRec.recommendation?.vocabulary_hint  || 'grade_level';
+        const rlLabel    = mlRec.reading_level?.label || 'adapting…';
+        const engLabel   = mlRec.engagement?.label   || 'medium';
+        if (mlRec.cold_start) {
+          mlInfo.innerHTML = `<span style="color:var(--text-muted)">🌱 Building profile — read more stories to unlock full personalisation</span>`;
+        } else {
+          mlInfo.innerHTML =
+            `Reading: <strong>${rlLabel}</strong> · ` +
+            `Complexity: <strong>${complexity}</strong> · ` +
+            `Engagement: <strong>${engLabel}</strong>`;
+        }
+      } else {
+        mlRow.style.display = 'none';
+      }
+    }
 
     // Profile
     const activeTab = document.querySelector('.profile-tab.active');
@@ -325,13 +379,15 @@ const Builder = (() => {
 
     const settingSelect = document.getElementById('settingSelect');
     const customSetting = document.getElementById('customSetting');
-    let setting = settingSelect?.value || 'an enchanted forest';
+    // Use '' (empty string) when AI Recommends is selected — route will apply ML pick
+    let setting = settingSelect?.value ?? '';
     if (setting === 'custom') {
-      setting = customSetting?.value?.trim() || 'an enchanted forest';
+      setting = customSetting?.value?.trim() || '';
     }
 
     const ageGroup = document.querySelector('input[name="ageGroup"]:checked')?.value || '6-8';
-    const theme = document.getElementById('themeSelect')?.value || 'friendship';
+    // Use '' when AI Recommends is selected
+    const theme = document.getElementById('themeSelect')?.value ?? '';
     const moral = document.getElementById('moralInput')?.value?.trim() || '';
 
     const validChars = characters.filter(c => c.name.trim().length > 0);

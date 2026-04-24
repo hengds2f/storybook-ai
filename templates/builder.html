@@ -42,6 +42,7 @@
           <div class="form-group">
             <label class="form-label" for="settingSelect">Setting</label>
             <select class="form-select" id="settingSelect" onchange="Builder.updatePreview()">
+              <option value="" selected>🤖 AI Recommends</option>
               <option value="an enchanted forest">🌲 Enchanted Forest</option>
               <option value="outer space">🚀 Outer Space</option>
               <option value="a magical underwater kingdom">🌊 Underwater Kingdom</option>
@@ -57,6 +58,7 @@
           <div class="form-group">
             <label class="form-label" for="themeSelect">Theme</label>
             <select class="form-select" id="themeSelect" onchange="Builder.updatePreview()">
+              <option value="" selected>🤖 AI Recommends</option>
               <option value="friendship">💛 Friendship</option>
               <option value="courage">🦁 Courage</option>
               <option value="honesty">🌟 Honesty</option>
@@ -166,6 +168,10 @@
         <div class="preview-item">
           <span class="preview-label">Moral Lesson</span>
           <span class="preview-value" id="prevMoral" style="font-size:0.88rem; color:var(--text-secondary);">—</span>
+        </div>
+        <div class="preview-item" id="prevMlRow" style="display:none;">
+          <span class="preview-label">🧠 ML Personalisation</span>
+          <span class="preview-value" id="prevMlInfo" style="font-size:0.85rem;">—</span>
         </div>
 
         <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--color-border);">
