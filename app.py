@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 # Load environment variables at the absolute earliest point
 load_dotenv()
 
-from flask import Flask, render_template, session
+from flask import Flask, render_template, session, request
 from services.storage import init_db
 from werkzeug.middleware.proxy_fix import ProxyFix
 
