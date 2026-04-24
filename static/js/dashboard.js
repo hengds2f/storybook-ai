@@ -167,7 +167,6 @@ const Dashboard = (() => {
     if (content) content.classList.remove('hidden');
 
     await loadData();
-    await loadAiStatus();
   }
 
   async function loadAiStatus() {
@@ -759,5 +758,5 @@ const Dashboard = (() => {
     }
   });
 
-  return { init, filterStories, runAiTest, renderMLOverview };
+  return { init, filterStories, renderMLOverview };
 })();

@@ -459,10 +459,14 @@ const Builder = (() => {
         App.showToast('error', data.status_message || 'Generation failed');
         document.getElementById('generateBtn').disabled = false;
       } else {
-        // Still working: Update UI and poll again
-        const msg = data.status_message || 'The magic is happening...';
+        // Still working: update progress and show a time-remaining hint
         const progress = data.progress_pct || 10;
-        App.showStoryLoading(msg, progress);
+        let timeHint;
+        if (progress < 20)      timeHint = 'About 40\u201360 seconds remaining\u2026';
+        else if (progress < 45) timeHint = 'About 20\u201330 seconds remaining\u2026';
+        else if (progress < 75) timeHint = 'Almost there\u2026';
+        else                    timeHint = 'Finishing up\u2026';
+        App.showStoryLoading(timeHint, progress);
         
         // Poll every 3 seconds
         setTimeout(() => pollGenerationStatus(taskId), 3000);
