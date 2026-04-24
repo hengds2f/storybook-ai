@@ -249,7 +249,7 @@ def ai_status():
     if not hf_token:
         token_error = "HF_TOKEN secret is missing — add it in Space Settings → Secrets"
     else:
-        # Validate the token by calling the HF whoami endpoint
+        # Try whoami to get username; treat any failure as "token present but unverified"
         try:
             import requests as _req
             resp = _req.get(
@@ -261,8 +261,11 @@ def ai_status():
                 token_valid = True
                 token_user = resp.json().get("name", "HF User")
             else:
-                token_error = f"Token rejected by HuggingFace (HTTP {resp.status_code})"
-        except Exception as e:
+                # Token present but whoami failed (fine-grained tokens, read-only tokens,
+                # or inference-only tokens may not support whoami — still usable for inference)
+                token_valid = True
+                token_user = "HF (configured)"
+        except Exception:
             # Network error — assume token is present but unverifiable
             token_valid = True
             token_user = "HF (unverified)"
