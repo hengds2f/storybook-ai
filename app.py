@@ -38,10 +38,12 @@ def create_app():
     from routes.auth import auth_bp
     from routes.story import story_bp
     from routes.dashboard import dashboard_bp
+    from routes.ml import ml_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(story_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(ml_bp)
 
     def get_session_user():
         """Return session user dict for template injection, or None."""
@@ -60,6 +62,17 @@ def create_app():
     @app.errorhandler(500)
     def server_error(e):
         return {"error": "Internal server error"}, 500
+
+    @app.after_request
+    def add_cors_headers(response):
+        # Allow requests from mobile and web origins
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        if request.method == 'OPTIONS':
+            response.headers['Access-Control-Allow-Methods'] = 'DELETE, GET, POST, PUT'
+            headers = request.headers.get('Access-Control-Request-Headers')
+            if headers:
+                response.headers['Access-Control-Allow-Headers'] = headers
+        return response
 
     return app
 

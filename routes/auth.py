@@ -1,20 +1,39 @@
-from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for
+from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for, current_app
 import bcrypt
 from services.storage import (
     create_user, get_user_by_username, get_user_by_id,
     create_profile, get_profiles_for_user, get_profile_by_id, delete_profile
 )
+from itsdangerous import URLSafeTimedSerializer
 
 auth_bp = Blueprint("auth", __name__)
 
 
 def login_required(f):
-    """Decorator: redirect to login if not authenticated."""
+    """Decorator: redirect to login if not authenticated, or accept Bearer token for mobile."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
+        # 1. Check for mobile Bearer token
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            try:
+                serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+                data = serializer.loads(token, max_age=86400*30) # 30 days
+                # Inject token user_id into session temporarily for this request context
+                session["user_id"] = data["user_id"]
+                session["username"] = data["username"]
+                return f(*args, **kwargs)
+            except Exception:
+                return jsonify({"error": "Invalid or expired token"}), 401
+                
+        # 2. Fallback to web session
         if "user_id" not in session:
-            return redirect(url_for("index"))
+            # If hit via API route, return 401 instead of redirecting
+            if request.path.startswith('/api/'):
+                return jsonify({"error": "Not authenticated"}), 401
+            return redirect(url_for("auth.app_page"))
         return f(*args, **kwargs)
     return decorated
 
@@ -43,7 +62,12 @@ def register():
     session.permanent = True          # honour PERMANENT_SESSION_LIFETIME
     session["user_id"] = user["id"]
     session["username"] = user["username"]
-    return jsonify({"success": True, "user_id": user["id"], "username": user["username"]}), 201
+    
+    # Generate mobile token
+    serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    token = serializer.dumps({"user_id": user["id"], "username": user["username"]})
+    
+    return jsonify({"success": True, "token": token, "user_id": user["id"], "username": user["username"]}), 201
 
 
 @auth_bp.route("/api/login", methods=["POST"])
@@ -62,7 +86,12 @@ def login():
     session.permanent = True          # honour PERMANENT_SESSION_LIFETIME
     session["user_id"] = user["id"]
     session["username"] = user["username"]
-    return jsonify({"success": True, "user_id": user["id"], "username": user["username"]}), 200
+    
+    # Generate mobile token
+    serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    token = serializer.dumps({"user_id": user["id"], "username": user["username"]})
+    
+    return jsonify({"success": True, "token": token, "user_id": user["id"], "username": user["username"]}), 200
 
 
 @auth_bp.route("/api/logout", methods=["POST"])

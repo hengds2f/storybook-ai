@@ -78,6 +78,10 @@ def init_db():
     conn.commit()
     conn.close()
 
+    # ML tables (reading_events, profile_ml_state, question_log)
+    from services.event_tracker import init_ml_tables
+    init_ml_tables()
+
 
 # ── User functions ──────────────────────────────────────────────────────────
 
