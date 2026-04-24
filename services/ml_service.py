@@ -389,28 +389,49 @@ def generate_vocab_questions(
     age_group: str,
     n: int = VOCAB_QUESTIONS_PER_SECTION,
     used_words: set | None = None,
+    pre_selected_words: list[str] | None = None,
 ) -> list[dict]:
     """
-    Extract challenge words from the story section and generate vocabulary MCQ
-    questions to test whether the reader knows each word's meaning.
+    Generate vocabulary MCQ questions for one story section.
 
-    ``used_words`` is a mutable set of lowercase word strings already asked in
-    earlier chapters of this story. Words in the set are excluded so every chapter
-    gets unique vocabulary questions. The set is updated in-place with the words
-    chosen for this chapter.
+    Preferred path: pass ``pre_selected_words`` (a list of words already
+    confirmed to appear verbatim in act_text, allocated by
+    ``allocate_story_vocab_words``).  The LLM is then asked only to write
+    MCQ definitions for those specific words, which is far more reliable than
+    asking it to pick words itself.
 
-    Tries LLM generation first (returns up to `n` questions).
-    Falls back to rule-based templates using pre-defined word lists.
+    Legacy path (no pre_selected_words): ask LLM to find words then write MCQs.
+    Kept for backward-compatibility / standalone callers.
 
-    Each returned question dict is already saved to question_log.
-
-    Returns:
-        List of saved question dicts, each with question_id.
+    ``used_words`` is updated in-place so callers can track cross-chapter usage.
     """
     if used_words is None:
         used_words = set()
 
-    # Try LLM path first
+    if pre_selected_words:
+        # ── Primary path: words pre-verified to be in the chapter text ──────
+        llm_questions = _llm_questions_for_words(pre_selected_words, act_text, age_group)
+        if llm_questions:
+            saved = []
+            for qdata in llm_questions:
+                qdata.update({
+                    "question_id": str(uuid.uuid4()),
+                    "profile_id": profile_id,
+                    "story_id": story_id,
+                    "act_number": act_number,
+                    "question_type": "vocabulary",
+                    "generated_by": "llm",
+                })
+                save_question(qdata)
+                saved.append(qdata)
+                used_words.add(qdata.get("word", "").lower())
+            return saved
+        # LLM unavailable or failed — build simple questions from the given words
+        return _simple_questions_for_words(
+            pre_selected_words, profile_id, story_id, act_number, act_text, used_words
+        )
+
+    # ── Legacy path: LLM picks words and writes MCQs in one pass ────────────
     llm_questions = _llm_generate_vocab_questions(act_text, age_group, n, used_words)
     if llm_questions:
         saved = []
@@ -428,9 +449,97 @@ def generate_vocab_questions(
             used_words.add(qdata.get("word", "").lower())
         return saved
 
-    # Rule-based fallback — pick words the text actually contains when possible,
-    # then supplement from the age-group word bank.
     return _rule_based_vocab_questions(profile_id, story_id, act_number, act_text, age_group, n, used_words)
+
+
+# Extended stop-word set used by allocate_story_vocab_words for word extraction.
+# Covers function words, pronouns, basic verbs/adjectives unlikely to be teaching words.
+_STOP_WORDS: frozenset[str] = frozenset({
+    "about","above","after","again","against","ahead","along","already","also",
+    "always","among","another","around","asked","away","became","because",
+    "before","began","being","below","between","both","bring","brought",
+    "called","came","cannot","child","children","close","could","doing",
+    "done","down","during","each","ever","every","everyone","everything",
+    "except","eyes","face","father","finally","first","found","friend",
+    "friends","from","front","gave","going","gone","good","great","hands",
+    "happy","having","heard","heart","hello","help","here","himself",
+    "home","house","however","inside","into","itself","just","keep",
+    "kept","knew","know","large","later","leave","left","light","like",
+    "little","long","looked","made","make","many","maybe","might","more",
+    "most","mother","much","must","myself","named","near","never","night",
+    "nothing","often","once","only","other","others","ourselves","outside",
+    "over","place","point","quite","reach","ready","really","replied",
+    "right","round","said","same","second","seemed","shall","should",
+    "since","small","smile","smiled","something","sometimes","soon",
+    "spoke","start","still","story","taken","takes","their","there",
+    "these","think","those","thought","three","through","times","today",
+    "together","told","toward","tried","truly","turned","under","until",
+    "upon","using","voice","walks","wants","watch","watched","where",
+    "while","whose","will","within","without","words","world","would",
+    "years","young","yours","yourself","began","close","whole","every",
+    "asked","above","ahead","yours","shall","seven","eight","three",
+    "found","makes","comes","taken","given","shown","carry","learn",
+    "stand","stood","whole","bring","going","truly","reach","begin",
+    "looks","small","early","heard","happy","great","yours","could",
+})
+
+
+def allocate_story_vocab_words(
+    sections: list[dict],
+    n_per_section: int = VOCAB_QUESTIONS_PER_SECTION,
+) -> dict[str, list[str]]:
+    """
+    Examine ALL story sections in one pass and return ``n_per_section`` unique
+    teaching words for each section that needs vocabulary questions.
+
+    Guarantees:
+    - Every returned word appears verbatim (lowercase) in its section's text.
+    - No word is assigned to more than one section.
+    - Words are chosen by frequency within the section (most-used first),
+      then by length (longer = more likely to be a good teaching word).
+
+    Returns:
+        {section_title: [word, word, ...], ...}
+        Sections with fewer candidate words than n_per_section get what's available.
+    """
+    import re
+
+    # Build per-section word frequency tables
+    section_data: dict[str, tuple[str, dict[str, int]]] = {}  # title -> (text_lower, freq)
+    for section in sections:
+        title = section.get("title", "")
+        text = section.get("content", "") or section.get("text", "")
+        if not text:
+            continue
+        text_lower = text.lower()
+        # Extract all purely alphabetic tokens of 5+ chars, already lowercased
+        tokens = re.findall(r'\b[a-z]{5,}\b', text_lower)
+        freq: dict[str, int] = {}
+        for w in tokens:
+            if w not in _STOP_WORDS:
+                freq[w] = freq.get(w, 0) + 1
+        section_data[title] = (text_lower, freq)
+
+    global_used: set[str] = set()
+    result: dict[str, list[str]] = {}
+
+    for section in sections:
+        title = section.get("title", "")
+        if title not in section_data:
+            continue
+        _text_lower, freq = section_data[title]
+        # Candidates: words not yet allocated to an earlier section, sorted
+        # by frequency desc then length desc so the most chapter-specific,
+        # interesting words come first.
+        candidates = sorted(
+            [(w, c) for w, c in freq.items() if w not in global_used],
+            key=lambda x: (-x[1], -len(x[0])),
+        )
+        chosen = [w for w, _ in candidates[:n_per_section]]
+        result[title] = chosen
+        global_used.update(chosen)
+
+    return result
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -672,6 +781,137 @@ def _vocab_score_label(score: float) -> str:
     if score <= 7.0:
         return "Grade Level"
     return "Advanced"
+
+
+def _llm_questions_for_words(
+    words: list[str],
+    act_text: str,
+    age_group: str,
+) -> list[dict] | None:
+    """
+    Ask Gemini to write one MCQ definition question for each word in ``words``.
+    All words are guaranteed to appear in act_text (caller's responsibility).
+    Returns a list of question dicts, or None on any failure.
+
+    This is more reliable than _llm_generate_vocab_questions because the LLM
+    is not asked to pick words — it only needs to write definitions.
+    """
+    try:
+        import config
+        if not config.GEMINI_API_KEY:
+            return None
+
+        import google.genai as genai
+        import re
+
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        words_json = json.dumps(words)
+
+        prompt = f"""You are a vocabulary teacher for children aged {age_group}.
+
+Chapter text (the words below all appear in this chapter):
+\"\"\"
+{act_text[:4000]}
+\"\"\"
+
+For EACH word in the list below, write one multiple-choice question that asks what the word means.
+Words to use: {words_json}
+
+Rules:
+- Write exactly one question per word, in the same order as the list.
+- question_text must contain the word in double quotes and end with a question mark.
+- Use 4 options (A, B, C, D). One is correct; three are plausible but wrong.
+- Vary which letter (A/B/C/D) is the correct answer across questions.
+- Language and difficulty must suit age group {age_group}.
+- No scary, violent, or inappropriate content.
+
+Return ONLY a valid JSON array — no markdown fences, no extra text:
+[
+  {{
+    "word": "gleaming",
+    "question_text": "In the story, what does the word \\"gleaming\\" mean?",
+    "options": ["A. Making a loud noise", "B. Shining brightly", "C. Moving very fast", "D. Feeling sad"],
+    "correct_answer": "B"
+  }}
+]"""
+
+        response = client.models.generate_content(
+            model=config.GEMINI_MODEL_STANDARD,
+            contents=prompt,
+        )
+        raw = response.text.strip()
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
+
+        items = json.loads(raw)
+        if not isinstance(items, list) or len(items) == 0:
+            return None
+
+        act_text_lower = act_text.lower()
+        result = []
+        for item in items:
+            if not all(k in item for k in ("question_text", "options", "correct_answer")):
+                continue
+            word_lower = item.get("word", "").lower().strip()
+            # Confirm the word is actually in the chapter text
+            if word_lower and word_lower not in act_text_lower:
+                print(f"[ML] _llm_questions_for_words: '{word_lower}' not in chapter text — skipping")
+                continue
+            if not item["question_text"].endswith("?"):
+                item["question_text"] = item["question_text"].rstrip(".") + "?"
+            result.append({
+                "question_text": item["question_text"],
+                "options": item["options"][:4],
+                "correct_answer": item["correct_answer"].strip().upper(),
+                "word": item.get("word", word_lower),
+            })
+
+        return result if result else None
+
+    except Exception as e:
+        print(f"[ML] _llm_questions_for_words failed: {e}")
+        return None
+
+
+def _simple_questions_for_words(
+    words: list[str],
+    profile_id: str,
+    story_id: str,
+    act_number: int,
+    act_text: str,
+    used_words: set,
+) -> list[dict]:
+    """
+    Fallback when the LLM is unavailable.  Generates a minimal open-ended
+    question for each word so the reader is at least prompted to think about it.
+    Words are guaranteed to appear in act_text.
+    """
+    act_text_lower = act_text.lower()
+    result = []
+    for word in words:
+        if word.lower() not in act_text_lower:
+            continue  # safety: only use words confirmed in text
+        q = {
+            "question_id":    str(uuid.uuid4()),
+            "profile_id":     profile_id,
+            "story_id":       story_id,
+            "act_number":     act_number,
+            "question_text":  f'What does the word "{word}" mean in this chapter?',
+            "question_type":  "vocabulary",
+            "options": [
+                "A. I know exactly what it means",
+                "B. I have a rough idea",
+                "C. I have seen it before but am not sure",
+                "D. I do not know this word",
+            ],
+            "correct_answer": "A",
+            "word":           word,
+            "generated_by":   "simple_fallback",
+        }
+        save_question(q)
+        result.append(q)
+        used_words.add(word.lower())
+    return result
 
 
 def _llm_generate_vocab_questions(

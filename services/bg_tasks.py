@@ -147,12 +147,23 @@ def _word_count_for_age(age_group: str) -> int:
 
 def _generate_act_questions(profile_id: str, story_id: str, sections: list, params: dict):
     """
-    Generate 5 vocabulary questions for each named story section (Introduction,
-    Challenge, Resolution, Moral) by extracting words from the section text.
-    Attaches question_ids list to each section for the reader to render a quiz.
-    Each section is handled independently — a failure does not block others.
+    Two-pass vocabulary question generator:
+
+    Pass 1 — Word allocation (pure Python, no LLM):
+        Examine ALL chapter texts together with ``allocate_story_vocab_words``.
+        Each chapter receives a unique set of teaching words that actually appear
+        in that chapter's text.  No word is shared across chapters.
+
+    Pass 2 — Question generation (LLM-based):
+        For each chapter, call the LLM with the pre-allocated word list and ask
+        it to write MCQ definitions only (not pick words).  Falls back to simple
+        open-ended questions when the LLM is unavailable.
     """
-    from services.ml_service import generate_vocab_questions, VOCAB_QUESTIONS_PER_SECTION
+    from services.ml_service import (
+        generate_vocab_questions,
+        allocate_story_vocab_words,
+        VOCAB_QUESTIONS_PER_SECTION,
+    )
     age_group = params.get("age_group", "6-8")
     section_act_map = {
         "Introduction": 2,
@@ -161,16 +172,29 @@ def _generate_act_questions(profile_id: str, story_id: str, sections: list, para
         "Moral":        8,
     }
 
-    # Shared set of used words across all chapters — ensures every chapter's
-    # vocabulary questions are unique throughout the entire story.
-    story_used_words: set = set()
+    # ── Pass 1: allocate unique teaching words per chapter ───────────────────
+    # Only consider the sections that need questions.
+    vocab_sections = [
+        s for s in sections
+        if s.get("title", "") in _VOCAB_SECTIONS
+        and (s.get("content", "") or s.get("text", ""))
+        and len(s.get("content", "") or s.get("text", "")) >= 60
+    ]
+    words_by_section = allocate_story_vocab_words(vocab_sections, VOCAB_QUESTIONS_PER_SECTION)
+    print(f"[BG_TASK] Word allocation: { {t: w for t, w in words_by_section.items()} }")
 
+    # ── Pass 2: generate questions for each chapter's allocated words ────────
+    story_used_words: set = set()
     for section in sections:
         title = section.get("title", "")
         if title not in _VOCAB_SECTIONS:
             continue
         act_text = section.get("content", "") or section.get("text", "")
         if not act_text or len(act_text) < 60:
+            continue
+        pre_words = words_by_section.get(title, [])
+        if not pre_words:
+            print(f"[BG_TASK] No teaching words found for '{title}' — skipping questions")
             continue
         act_number = section_act_map.get(title, 1)
         try:
@@ -181,12 +205,12 @@ def _generate_act_questions(profile_id: str, story_id: str, sections: list, para
                 act_text=act_text,
                 age_group=age_group,
                 n=VOCAB_QUESTIONS_PER_SECTION,
-                used_words=story_used_words,  # passed by reference; updated in-place
+                used_words=story_used_words,
+                pre_selected_words=pre_words,  # words confirmed to be in this chapter
             )
             section["question_ids"] = [q["question_id"] for q in questions]
             section["question_type"] = "vocabulary"
-            print(f"[BG_TASK] {len(questions)} vocab questions for '{title}' "
-                  f"(used pool now {len(story_used_words)} words): "
+            print(f"[BG_TASK] {len(questions)} vocab questions for '{title}': "
                   f"{[q.get('word', q['question_id'][:8]) for q in questions]}")
         except Exception as e:
             print(f"[BG_TASK] Vocab question generation failed for '{title}' (non-fatal): {e}")
