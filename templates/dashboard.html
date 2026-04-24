@@ -53,10 +53,46 @@
       </div>
     </div>
 
-    <!-- Reader Progress (per-profile vocabulary) -->
+    <!-- ── ML Intelligence Overview ──────────────────────────────────── -->
+    <div id="mlOverviewSection" style="margin-bottom:2.5rem; display:none;">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
+        <h2 style="font-size:1.2rem; font-weight:700;">🧠 Machine Learning Intelligence</h2>
+        <span id="mlModelBadge" class="story-badge" style="font-size:0.7rem; background:rgba(99,102,241,0.2); color:#818cf8; border:1px solid rgba(99,102,241,0.3);">Rule-Based Engine</span>
+      </div>
+
+      <!-- ML stat cards -->
+      <div id="mlStatCards" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+        <!-- Populated by dashboard.js -->
+      </div>
+
+      <!-- Complexity & Vocabulary Distribution -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+        <div class="card">
+          <h3 style="margin-bottom:1rem; font-size:1rem;">📊 Story Complexity Distribution</h3>
+          <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:1rem;">
+            Every generated story is assigned a complexity level by the ML engine based on each reader's score.
+          </p>
+          <div id="complexityBreakdown"><!-- Populated by dashboard.js --></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:1rem; font-size:1rem;">📝 Vocabulary Level Distribution</h3>
+          <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:1rem;">
+            Vocabulary levels are dynamically adjusted per reader so each story stretches — but doesn't overwhelm — the child.
+          </p>
+          <div id="vocabHintBreakdown"><!-- Populated by dashboard.js --></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reader Progress (per-profile vocabulary + engagement) -->
     <div id="readerProgress" style="margin-bottom:2.5rem; display:none;">
-      <h2 style="font-size:1.2rem; font-weight:700; margin-bottom:1.25rem;">📈 Reader Progress</h2>
-      <div id="profileProgressCards" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:1.5rem;">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
+        <h2 style="font-size:1.2rem; font-weight:700;">📈 Reader Progress &amp; ML Personalisation</h2>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1.25rem;">
+        The AI continuously learns from each child's reading behaviour — adjusting story length, vocabulary, and complexity in real time.
+      </p>
+      <div id="profileProgressCards" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:1.5rem;">
         <!-- Populated by dashboard.js -->
       </div>
     </div>

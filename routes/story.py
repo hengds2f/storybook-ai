@@ -33,8 +33,9 @@ def generate():
     # ── ML personalisation: fetch recommendations for this profile ──────────
     # If the user explicitly supplied theme/setting, respect that (manual override).
     # Otherwise, use ML-recommended values.
-    from services.ml_service import recommend_story_params
+    from services.ml_service import recommend_story_params, estimate_vocabulary_score
     ml_rec = recommend_story_params(profile_id, age_group)
+    vocab_result = estimate_vocabulary_score(profile_id, age_group)
 
     user_supplied_theme   = data.get("theme", "").strip()
     user_supplied_setting = data.get("setting", "").strip()
@@ -53,6 +54,8 @@ def generate():
         # ML hints consumed by story_builder.build_8act_prompts
         "complexity_hint":  ml_rec["complexity_hint"],
         "vocabulary_hint":  ml_rec["vocabulary_hint"],
+        # Numeric vocabulary score drives dynamic word-count targets in build_8act_prompts
+        "vocabulary_score": vocab_result["score"],
         "ml_cold_start":    ml_rec["cold_start"],
         "ml_confidence":    ml_rec["confidence"],
     }
@@ -76,12 +79,14 @@ def generate():
         "task_id": task["id"],
         "message": "Story generation started in background.",
         "ml_applied": {
-            "theme":           theme,
-            "setting":         setting,
-            "age_group":       params["age_group"],
-            "complexity_hint": params["complexity_hint"],
-            "cold_start":      ml_rec["cold_start"],
-            "confidence":      ml_rec["confidence"],
+            "theme":            theme,
+            "setting":          setting,
+            "age_group":        params["age_group"],
+            "complexity_hint":  params["complexity_hint"],
+            "vocabulary_hint":  params["vocabulary_hint"],
+            "vocabulary_score": params["vocabulary_score"],
+            "cold_start":       ml_rec["cold_start"],
+            "confidence":       ml_rec["confidence"],
         },
     }), 202
 

@@ -14,31 +14,69 @@ AGE_CONFIG = {
     "3-5": {
         "label": "Ages 3–5",
         "vocabulary": "Simple verbs/adjectives, rhyming, repetitive phrases, conversational language, clear story structure.",
-        "length": "50-100 words",
+        "length": "50-150 words",
         "complexity": "simple and magical, with clear cause-and-effect",
-        "max_tokens": 500,
+        "max_tokens": 600,
         "per_act_words": "15",
-        "story_word_count": "50-100"
+        "story_word_count": "50-150",
+        # vocab-score-based word range: (min_total, max_total, min_per_act, max_per_act)
+        "_vocab_range": (50, 180, 10, 28),
     },
     "6-8": {
         "label": "Ages 6–8",
         "vocabulary": "More complex sentence structures, introduced descriptive words (adverbs/adjectives), focus on plot/characters.",
-        "length": "100-500 words",
+        "length": "100-650 words",
         "complexity": "engaging with a clear problem to solve",
-        "max_tokens": 800,
+        "max_tokens": 1000,
         "per_act_words": "50",
-        "story_word_count": "100-500"
+        "story_word_count": "100-650",
+        "_vocab_range": (100, 650, 30, 85),
     },
     "9-12": {
         "label": "Ages 9–12",
         "vocabulary": "Sophisticated vocabulary, complex themes, developed dialogue, abstract concepts, varied sentence length.",
-        "length": "500-1000 words",
+        "length": "400-1200 words",
         "complexity": "more nuanced with character development and descriptive scenes",
-        "max_tokens": 2000,
+        "max_tokens": 2200,
         "per_act_words": "100",
-        "story_word_count": "500-1000"
+        "story_word_count": "400-1200",
+        "_vocab_range": (400, 1200, 60, 150),
     }
 }
+
+
+def _get_vocab_adjusted_targets(age_group: str, vocabulary_score: float) -> dict:
+    """
+    Compute dynamic story length targets scaled to the reader's vocabulary score (1–10).
+
+    A higher vocabulary score produces longer, more complex stories within the age group's
+    natural range. Linear interpolation between the minimum (score=1) and maximum (score=10).
+
+    Returns a dict with: story_word_count (str range), per_act_words (str), max_tokens (int).
+    """
+    cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
+    min_total, max_total, min_act, max_act = cfg["_vocab_range"]
+
+    # Normalise score to 0–1; clamp defensively
+    ratio = max(0.0, min(1.0, (vocabulary_score - 1.0) / 9.0))
+
+    total_target = int(min_total + ratio * (max_total - min_total))
+    act_target   = int(min_act  + ratio * (max_act  - min_act))
+
+    # Give a ±10% window for the word-count range displayed in the prompt
+    word_min = max(min_total, int(total_target * 0.9))
+    word_max = int(total_target * 1.15)
+
+    # Scale max_tokens proportionally (base max_tokens is calibrated for max-range stories)
+    token_ratio  = 0.5 + 0.5 * ratio          # never drop below 50 % of base tokens
+    max_tokens   = int(cfg["max_tokens"] * token_ratio)
+
+    return {
+        "story_word_count": f"{word_min}-{word_max}",
+        "per_act_words":    str(act_target),
+        "max_tokens":       max_tokens,
+        "vocab_score_used": round(vocabulary_score, 2),
+    }
 
 
 def set_seeds(params: dict) -> dict:
@@ -179,7 +217,15 @@ def build_8act_prompts(params: dict, act_number: int, previous_content: str = No
     ALL characters are explicitly listed and required to appear in every act.
     """
     age_group = params.get("age_group", "6-8")
-    cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"])
+    cfg = AGE_CONFIG.get(age_group, AGE_CONFIG["6-8"]).copy()
+
+    # ── Vocabulary-score-based dynamic length ─────────────────────────────
+    vocabulary_score = params.get("vocabulary_score")
+    if vocabulary_score is not None:
+        adjusted = _get_vocab_adjusted_targets(age_group, float(vocabulary_score))
+        cfg["story_word_count"] = adjusted["story_word_count"]
+        cfg["per_act_words"]    = adjusted["per_act_words"]
+        cfg["max_tokens"]       = adjusted["max_tokens"]
 
     characters = params.get("characters", [])
     names_str, char_detail = build_character_descriptions(characters)
