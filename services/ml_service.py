@@ -507,7 +507,149 @@ _STOP_WORDS: frozenset[str] = frozenset({
     "tablet","temple","thread","throne","ticket","timber","tinker",
     "tongue","turtle","umbrella","velvet","viking","violet","visits",
     "wallet","winter","wizard","wonder","wander","wicked","whisper",
+    # Common adjectives / adverbs children already know
+    "perfect","always","anyone","better","bigger","bright","broken",
+    "certain","change","clean","clever","closer","colder","coming",
+    "common","different","enjoy","enter","faster","follow","funny",
+    "gentle","getting","giving","harder","higher","honest","important",
+    "larger","louder","lower","lucky","matter","middle","minute",
+    "moment","morning","newer","older","patient","quiet","shorter",
+    "simple","slower","softer","stronger","taller","tired","trying",
+    "upper","useful","usual","warmer","weaker","wetter","wider","writing",
 })
+
+# ── Built-in vocabulary definitions ─────────────────────────────────────────
+# Real definitions with 3 plausible-but-wrong alternatives.
+# Used by _simple_questions_for_words BEFORE any LLM call so correct answers
+# are always genuinely correct, regardless of LLM availability.
+# Format: word -> (correct_definition, [wrong1, wrong2, wrong3])
+_VOCAB_DEFINITIONS: dict[str, tuple[str, list[str]]] = {
+    # ── Adjectives ───────────────────────────────────────────────────────────
+    "ancient":      ("very old, from a long time ago",                   ["brand new and shiny", "very small and tiny", "extremely loud"]),
+    "brave":        ("willing to face danger without fear",              ["very hungry", "easily scared", "feeling sleepy"]),
+    "brilliant":    ("very clever, or giving off a very bright light",   ["quite dull and dim", "very noisy", "very heavy"]),
+    "calm":         ("quiet and peaceful, not worried or excited",       ["very loud and busy", "cold and shivery", "quick and impatient"]),
+    "cheerful":     ("feeling or showing happiness",                     ["sad and gloomy", "tired and bored", "angry and upset"]),
+    "colossal":     ("enormous in size",                                 ["very tiny and delicate", "quite dull", "soft and gentle"]),
+    "courageous":   ("very brave, able to face danger or difficulty",   ["easily frightened", "very lazy", "extremely noisy"]),
+    "cryptic":      ("mysterious and hard to understand",               ["very clear and simple", "extremely colourful", "warm and pleasant"]),
+    "curious":      ("eager to learn or find out about things",         ["feeling very tired", "feeling full after eating", "very bored"]),
+    "dazzling":     ("extremely bright or impressive",                  ["very dark and gloomy", "quite ordinary", "very slow"]),
+    "determined":   ("having a firm decision to succeed at something",  ["easily giving up", "very confused", "feeling sleepy"]),
+    "enchanted":    ("placed under a magic spell",                      ["very cold and icy", "made of solid stone", "very hungry"]),
+    "elusive":      ("difficult to find, catch, or understand",         ["very easy to see", "extremely heavy", "quite ordinary"]),
+    "ethereal":     ("extremely delicate and light, almost magical",    ["rough and very heavy", "loud and sharp", "cold and bitter"]),
+    "fearless":     ("having no fear at all, very brave",               ["always frightened", "very slow", "quite small"]),
+    "fierce":       ("very strong, powerful, or aggressive",            ["gentle and calm", "slow and quiet", "dull and boring"]),
+    "fragile":      ("easily broken or damaged",                        ["very strong and tough", "extremely loud", "very heavy"]),
+    "gleaming":     ("shining brightly and cleanly",                    ["making loud sounds", "moving very quickly", "smelling unpleasant"]),
+    "glimmering":   ("giving off a soft, faint, flickering light",      ["making a rumbling noise", "sinking very deeply", "tasting very sweet"]),
+    "glorious":     ("very beautiful, magnificent, or worthy of praise", ["very dull and boring", "quite ordinary", "very ugly"]),
+    "graceful":     ("moving smoothly and elegantly",                   ["very clumsy and awkward", "extremely loud", "quite heavy"]),
+    "gloomy":       ("dark, dull, or feeling sad",                      ["very bright and cheerful", "soft and gentle", "warm and cosy"]),
+    "joyful":       ("feeling or causing great happiness",              ["feeling sad and lonely", "very tired", "quite angry"]),
+    "luminous":     ("giving off a bright glow of light",               ["completely dark", "extremely heavy", "very noisy"]),
+    "majestic":     ("having impressive beauty and dignity",            ["very small and plain", "quite ordinary", "very rough"]),
+    "magnificent":  ("extremely beautiful or impressively large",       ["very plain and dull", "quite small", "very rough"]),
+    "mischievous":  ("playfully causing trouble or mischief",           ["very serious and solemn", "very sleepy", "very hungry"]),
+    "mysterious":   ("strange and not easily understood or explained",  ["very ordinary", "quite boring", "very clear"]),
+    "noble":        ("having high moral qualities, or of high rank",    ["dishonest and selfish", "very small", "quite ordinary"]),
+    "ominous":      ("suggesting that something bad is about to happen", ["cheerful and bright", "soft and gentle", "warm and cosy"]),
+    "peculiar":     ("strange or unusual in a noticeable way",          ["very ordinary", "quite beautiful", "extremely fast"]),
+    "radiant":      ("sending out bright light or warmth and happiness", ["dark and cold", "dull and grey", "very noisy"]),
+    "resilient":    ("able to recover quickly from difficulties",       ["easily broken or damaged", "very heavy", "quite boring"]),
+    "serene":       ("calm, peaceful, and untroubled",                  ["very loud and noisy", "cold and rough", "dark and scary"]),
+    "slender":      ("thin and graceful in shape",                      ["very wide and round", "extremely loud", "quite heavy"]),
+    "splendid":     ("very impressive, excellent, or beautiful",        ["quite dull and boring", "very small", "quite rough"]),
+    "sturdy":       ("strongly and solidly built",                      ["soft and easily broken", "very light", "quite thin"]),
+    "swift":        ("moving or happening very quickly",                ["very slow", "quite heavy", "extremely loud"]),
+    "tenacious":    ("refusing to give up, holding firmly on",         ["easily discouraged", "very generous", "extremely forgetful"]),
+    "tranquil":     ("free from disturbance, calm and quiet",           ["loud and very busy", "cold and icy", "dark and scary"]),
+    "trembling":    ("shaking slightly because of fear, cold, or excitement", ["laughing loudly", "jumping high", "sleeping deeply"]),
+    "vibrant":      ("full of life and energy, bright and vivid",       ["dull and lifeless", "very slow", "quite heavy"]),
+    "wandering":    ("walking or travelling without a fixed destination", ["sitting very still", "sleeping deeply", "eating quickly"]),
+    "wondrous":     ("inspiring feelings of wonder and amazement",      ["very boring", "quite ordinary", "very dull"]),
+    "forsaken":     ("abandoned and left completely alone",             ["surrounded by many friends", "full of treasure", "very busy"]),
+    "foreboding":   ("a strong feeling that something bad is about to happen", ["a feeling of great happiness", "a kind of food", "a type of weather"]),
+    # ── Nouns ────────────────────────────────────────────────────────────────
+    "adventure":    ("an exciting, daring, or unusual experience",      ["a boring everyday routine", "a type of food", "a heavy object"]),
+    "ancestor":     ("a person from your family who lived long ago",    ["someone you will meet in the future", "a type of food", "a large animal"]),
+    "abyss":        ("a very deep, dark, bottomless hole or space",     ["a bright and sunny meadow", "a type of food", "a short path"]),
+    "beacon":       ("a bright light used as a signal or guide",        ["a dark shadow", "a loud noise", "a heavy stone"]),
+    "cavern":       ("a large underground cave",                         ["a tall tower", "a wide shallow river", "a flat open field"]),
+    "chamber":      ("a room, especially one used for a special purpose", ["a type of food", "an outdoor field", "a kind of clothing"]),
+    "champion":     ("a winner, or someone who stands up for a cause",  ["someone who always loses", "a type of food", "a broken object"]),
+    "crystal":      ("a clear, sparkling, glass-like mineral or gem",   ["a type of food", "a piece of rope", "a dark shadow"]),
+    "destiny":      ("the events that will happen to someone in the future", ["something forgotten from the past", "a type of food", "a boring habit"]),
+    "dungeon":      ("a dark underground prison or cell",               ["a bright rooftop garden", "a sunny meadow", "a warm cosy kitchen"]),
+    "echo":         ("a sound that bounces back after hitting a surface", ["a type of smell", "a bright colour", "a rough texture"]),
+    "ember":        ("a small piece of glowing coal or wood from a dying fire", ["a cold block of ice", "a flat smooth stone", "a dry crispy leaf"]),
+    "enchantment":  ("a magical spell, or a feeling of great delight",  ["a broken tool", "a noisy crowd", "a dull routine"]),
+    "fable":        ("a short story with a moral lesson, often using animals", ["a very long history book", "a type of food", "a piece of clothing"]),
+    "fortress":     ("a strong, well-defended building or castle",      ["a small flower garden", "a cosy bedroom", "a sandy beach"]),
+    "horizon":      ("the distant line where the sky meets the land or sea", ["the centre of the earth", "the roof of a building", "the bottom of a river"]),
+    "illusion":     ("something that tricks the eyes or the mind",      ["a solid and heavy object", "a very loud sound", "a type of food"]),
+    "labyrinth":    ("a complicated maze with many twisting paths",     ["a straight open road", "a calm flat lake", "a tall solid tower"]),
+    "legend":       ("an old story about heroic people or events passed down over time", ["a boring fact", "a type of food", "a piece of clothing"]),
+    "mystery":      ("something strange that is hard to explain or understand", ["something very easy to understand", "a boring routine", "a heavy object"]),
+    "omen":         ("a sign believed to show what will happen in the future", ["a memory from the past", "a type of food", "a piece of clothing"]),
+    "portal":       ("a doorway or entrance, especially a magical one", ["a solid wall", "a heavy stone", "a flat floor"]),
+    "prophecy":     ("a statement predicting what will happen in the future", ["a memory of the past", "a type of food", "a boring fact"]),
+    "riddle":       ("a question or puzzle with a clever or surprising answer", ["a simple instruction", "a boring story", "a type of food"]),
+    "ruins":        ("the broken-down remains of an old building or city", ["a brand new structure", "a type of food", "a living animal"]),
+    "sorcerer":     ("a person who practises magic or wizardry",        ["a type of food", "a heavy stone", "an ordinary farmer"]),
+    "summit":       ("the highest point of a mountain or hill",         ["the lowest point underground", "the middle of a flat field", "the bottom of a river"]),
+    "treasure":     ("valuable things such as gold, jewels, or coins",  ["worthless rubbish", "a type of weather", "an empty box"]),
+    "twilight":     ("the soft dim light just after sunset or before sunrise", ["the brightest part of midday", "a type of food", "a heavy rainstorm"]),
+    "villain":      ("an evil or wicked character in a story",          ["a kind and heroic person", "a type of food", "a gentle animal"]),
+    "voyage":       ("a long journey, especially by sea or through space", ["staying completely still in one place", "a short rest", "a type of food"]),
+    "warrior":      ("a person trained and experienced in battle",      ["someone who never leaves home", "a type of food", "a gentle artist"]),
+    "wisdom":       ("the ability to make good decisions from experience and knowledge", ["the ability to run very fast", "a type of food", "a heavy object"]),
+    "creature":     ("any living animal or being",                      ["a type of stone", "a piece of wood", "a kind of food"]),
+    "empire":       ("a large group of countries ruled by one powerful leader", ["a tiny quiet village", "a single house", "a short road"]),
+    "silence":      ("a complete absence of any sound",                 ["a very loud noise", "a bright flash of light", "a strong smell"]),
+    # ── Verbs ────────────────────────────────────────────────────────────────
+    "beckoned":     ("gestured or called to someone to come closer",   ["pushed someone far away", "made a very loud noise", "ate a large meal"]),
+    "crumbled":     ("broke apart or fell into small pieces",          ["grew very tall", "shone very brightly", "sang very loudly"]),
+    "descended":    ("moved downward from a higher place",             ["climbed up very quickly", "floated sideways", "grew taller"]),
+    "devoured":     ("ate something very quickly and completely",       ["left food untouched", "sang quietly to sleep", "slept for a long time"]),
+    "emerged":      ("came out into view from somewhere hidden",       ["went deep inside", "stayed perfectly still", "fell fast asleep"]),
+    "flickered":    ("shone with a small, unsteady, wavering light",   ["made a very loud noise", "sank to the bottom", "grew very tall"]),
+    "galloped":     ("ran very fast, like a horse at full speed",      ["moved very slowly and carefully", "sank to the ground", "whispered quietly"]),
+    "glimmered":    ("shone with a soft, faint, gentle light",        ["made a deep rumbling noise", "sank deeply below", "tasted very sweet"]),
+    "hesitated":    ("paused before acting because of doubt or fear", ["moved forward confidently", "shouted very loudly", "slept immediately"]),
+    "murmured":     ("spoke very quietly in a low, gentle voice",     ["shouted as loudly as possible", "jumped very high", "ran away quickly"]),
+    "perched":      ("sat or rested on the edge or top of something", ["dug deep underground", "swam very quickly away", "grew very large"]),
+    "pondered":     ("thought carefully and deeply about something",  ["acted without thinking at all", "ran away quickly", "shouted loudly"]),
+    "proclaimed":   ("announced something to everyone, loudly and officially", ["whispered a secret", "hid away quietly", "slept peacefully"]),
+    "quivered":     ("shook slightly with fear, cold, or excitement", ["stood perfectly and completely still", "laughed very loudly", "grew very tall"]),
+    "roamed":       ("wandered freely over a wide area",              ["stayed in one tiny spot", "sank to the ground", "grew very tall"]),
+    "shimmered":    ("shone with a soft, rippling, wavy light",       ["made a loud crashing sound", "sank very deeply", "grew very heavy"]),
+    "soared":       ("flew or rose very high into the air",           ["dug deep underground", "swam far away", "hid very quietly"]),
+    "stumbled":     ("tripped or walked unsteadily",                  ["ran very smoothly and fast", "flew very high", "sang perfectly"]),
+    "summoned":     ("called or ordered someone to come",             ["sent someone far away", "ate a large meal", "slept for a long time"]),
+    "thundered":    ("made or moved with a very loud deep rumbling noise", ["whispered very softly", "disappeared without a sound", "tiptoed carefully"]),
+    "trembled":     ("shook with fear, cold, or strong emotion",      ["stood perfectly still", "laughed loudly", "slept very deeply"]),
+    "vanished":     ("disappeared suddenly and completely",           ["appeared very clearly", "grew very tall", "moved very slowly"]),
+    "whimpered":    ("made a soft, quiet, whining or crying sound",   ["shouted very loudly", "jumped very high", "ate very quickly"]),
+    "yearned":      ("had a very strong desire or longing for something", ["did not care at all", "felt very tired", "ate a large meal"]),
+    "lingered":     ("stayed somewhere longer than expected",         ["left immediately", "flew away quickly", "grew very tall"]),
+    "shuddered":    ("shook suddenly from fear, cold, or disgust",    ["laughed out loud", "jumped for joy", "sang very sweetly"]),
+    "staggered":    ("walked or moved unsteadily, nearly falling",    ["ran perfectly smoothly", "flew very high", "swam gracefully"]),
+    "clambered":    ("climbed awkwardly using both hands and feet",   ["slid smoothly down", "floated gently", "dug deeper"]),
+    "scattered":    ("spread or threw things in many directions",     ["gathered everything together", "built something up", "kept things neat"]),
+    "drifted":      ("moved slowly and gently without direction",     ["rushed forward very fast", "sank straight down", "stood completely still"]),
+    "beckoning":    ("signalling or calling someone to come closer",  ["pushing someone far away", "making a loud noise", "eating a large meal"]),
+    # ── Adverbs ──────────────────────────────────────────────────────────────
+    "silently":     ("without making any sound",                      ["with a very loud crash", "with great speed", "with bright colour"]),
+    "gracefully":   ("in a smooth, elegant, and beautiful way",      ["in a clumsy and awkward way", "in a very loud way", "in a very slow way"]),
+    "cautiously":   ("carefully, watching out for danger",           ["without any care at all", "very loudly", "very quickly"]),
+    "desperately":  ("with great urgency or a very strong need",     ["without any concern", "very slowly", "very quietly"]),
+    "eagerly":      ("with great excitement and enthusiasm",         ["with no interest at all", "very slowly", "very angrily"]),
+    "fiercely":     ("with great strength, intensity, or passion",   ["very gently and softly", "very slowly", "very quietly"]),
+    "solemnly":     ("in a serious and sincere way",                 ["in a funny and joking way", "very quickly", "very loudly"]),
+    "wearily":      ("in a tired and exhausted way",                 ["with great energy", "very happily", "very angrily"]),
+}
 
 
 def allocate_story_vocab_words(
@@ -917,11 +1059,11 @@ def _simple_questions_for_words(
     used_words: set,
 ) -> list[dict]:
     """
-    Fallback when _llm_questions_for_words fails.  Tries a lightweight Gemini call
-    to get just a one-sentence definition + 3 wrong options for each word.
-    If Gemini is unavailable, builds simple definition MCQs from a small built-in
-    vocabulary map, or uses generic plausible options.
-    Words are guaranteed to appear in act_text.
+    Fallback when _llm_questions_for_words fails.
+    Priority order for each word:
+      1. Look up in _VOCAB_DEFINITIONS (always correct, no LLM needed)
+      2. Ask Gemini for a one-sentence definition (_fetch_definition_mcq)
+      3. Skip the word entirely — never emit a question with a wrong correct answer
     """
     act_text_lower = act_text.lower()
     result = []
@@ -929,7 +1071,25 @@ def _simple_questions_for_words(
         word_lower = word.lower()
         if word_lower not in act_text_lower:
             continue
-        qdata = _fetch_definition_mcq(word, act_text)
+
+        # --- 1. Built-in dictionary (guaranteed correct) ---
+        if word_lower in _VOCAB_DEFINITIONS:
+            correct_def, wrong_defs = _VOCAB_DEFINITIONS[word_lower]
+            letters = ["A", "B", "C", "D"]
+            correct_pos = random.randint(0, 3)
+            correct_letter = letters[correct_pos]
+            all_defs: list[str] = list(wrong_defs[:3])
+            all_defs.insert(correct_pos, correct_def)
+            options = [f"{l}. {d[0].upper() + d[1:]}" for l, d in zip(letters, all_defs)]
+            qdata = {"options": options, "correct_answer": correct_letter}
+        else:
+            # --- 2. Ask Gemini for a real definition ---
+            qdata = _fetch_definition_mcq(word)
+            if qdata is None:
+                # --- 3. No reliable answer available — skip this word ---
+                print(f"[ML] Skipping word '{word}' — no definition available")
+                continue
+
         q = {
             "question_id":    str(uuid.uuid4()),
             "profile_id":     profile_id,
@@ -948,31 +1108,36 @@ def _simple_questions_for_words(
     return result
 
 
-def _fetch_definition_mcq(word: str, context_text: str) -> dict:
+def _fetch_definition_mcq(word: str) -> dict | None:
     """
-    Ask Gemini for a one-sentence definition and 3 wrong options for a single word.
-    Falls back to suffix-heuristic MCQ if Gemini is unavailable.
-    Returns {options: [...], correct_answer: letter}.
+    Ask Gemini for a real one-sentence definition and 3 wrong options for a word.
+    Returns {options, correct_answer} or None if unavailable.
+    Never falls back to heuristics — caller decides what to do with None.
     """
     try:
         import config
         if not config.GEMINI_API_KEY:
-            raise RuntimeError("no key")
+            return None
         import google.genai as genai, re, json as _json
         client = genai.Client(api_key=config.GEMINI_API_KEY)
         prompt = (
-            f'Define the word "{word}" in one short phrase (5-8 words, child-friendly).\n'
-            f'Then give 3 wrong but plausible short definitions (5-8 words each).\n'
-            f'Return ONLY JSON, no markdown:\n'
-            f'{{"correct": "shining with a soft glow", "wrong": ["making a loud banging sound", "moving very quickly forward", "feeling cold and shivery"]}}'
+            f'Give a child-friendly definition of the word "{word}" in 5-8 words.\n'
+            f'Also give 3 wrong but plausible definitions (5-8 words each) that a child might confuse it with.\n'
+            f'Return ONLY valid JSON (no markdown, no extra text):\n'
+            f'{{"correct": "shining with a bright gentle light", "wrong": ["making a very loud crashing noise", "moving forward very quickly", "feeling cold and shivery"]}}'
         )
         resp = client.models.generate_content(model=config.GEMINI_MODEL_STANDARD, contents=prompt)
         raw = resp.text.strip()
         raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
         raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
         data = _json.loads(raw)
-        correct_def = data["correct"].strip()
-        wrong_defs  = [d.strip() for d in data["wrong"][:3]]
+        correct_def = str(data["correct"]).strip()
+        wrong_defs  = [str(d).strip() for d in data["wrong"][:3]]
+        if len(wrong_defs) < 3:
+            return None  # malformed response
+        # Sanity: correct answer must not contain the word itself
+        if word.lower() in correct_def.lower():
+            correct_def = correct_def.replace(word, "it").replace(word.capitalize(), "it")
         letters = ["A", "B", "C", "D"]
         correct_pos = random.randint(0, 3)
         correct_letter = letters[correct_pos]
@@ -982,89 +1147,7 @@ def _fetch_definition_mcq(word: str, context_text: str) -> dict:
         return {"options": options, "correct_answer": correct_letter}
     except Exception as e:
         print(f"[ML] _fetch_definition_mcq failed for '{word}': {e}")
-        return _heuristic_mcq(word)
-
-
-def _heuristic_mcq(word: str) -> dict:
-    """
-    Last-resort MCQ when Gemini is completely unavailable.
-    Produces four real definition-style options. The word itself never appears
-    in any option text.
-    Each suffix group has a pool of (correct_def, [wrong_def, ...]) pairs so
-    answers vary across questions.
-    """
-    w = word.lower()
-
-    # --- suffix-based pools ---
-    if w.endswith(('tion', 'sion')):
-        pool = [
-            ("the act or result of doing something",
-             ["a small object you can touch", "a feeling of sadness", "a place far away"]),
-            ("a process that causes a change",
-             ["a type of food eaten at dinner", "an animal found in the jungle", "a colour in the rainbow"]),
-        ]
-    elif w.endswith(('ness', 'ment', 'ance', 'ence', 'ity')):
-        pool = [
-            ("a quality or condition that can be felt or observed",
-             ["a tool used for building", "a sound made by an animal", "a place visited on a journey"]),
-            ("the state of having a particular feature",
-             ["a type of sweet food", "a piece of furniture", "a way of travelling"]),
-        ]
-    elif w.endswith('ful'):
-        pool = [
-            ("having a lot of something good",
-             ["completely empty", "very noisy and busy", "made of rough material"]),
-        ]
-    elif w.endswith(('ous', 'ious')):
-        pool = [
-            ("having a strong or notable quality",
-             ["easy to carry in a pocket", "found only underground", "made entirely of wood"]),
-        ]
-    elif w.endswith(('ive', 'able', 'ible')):
-        pool = [
-            ("able to do or cause something",
-             ["impossible to see clearly", "very heavy and solid", "belonging to someone else"]),
-        ]
-    elif w.endswith('less'):
-        pool = [
-            ("without something that is usually present",
-             ["filled to the very top", "extremely loud", "covered in patterns"]),
-        ]
-    elif w.endswith('ing'):
-        pool = [
-            ("happening right now or continuing over time",
-             ["finished and done with", "stored away safely", "belonging to the past"]),
-            ("an action or process that is taking place",
-             ["a solid and heavy object", "a place that is far away", "a colour or pattern"]),
-        ]
-    elif w.endswith(('ed', 'ened', 'ered')):
-        pool = [
-            ("changed into a new state or condition",
-             ["something you can eat", "a type of clothing", "a place in nature"]),
-            ("completed or having happened already",
-             ["a loud and sudden noise", "an animal in the wild", "a kind of weather"]),
-        ]
-    elif w.endswith('ly'):
-        pool = [
-            ("in a way that shows a particular manner or degree",
-             ["a place where people gather", "a type of sport or game", "a strong physical feeling"]),
-        ]
-    else:
-        pool = [
-            ("something that has a special meaning or effect",
-             ["a type of food you eat", "a piece of clothing to wear", "a way to travel somewhere"]),
-            ("something that can change or affect the world around it",
-             ["a heavy object made of stone", "a sound heard at night", "a colour seen in the sky"]),
-        ]
-
-    correct, wrong = random.choice(pool)
-    letters = ["A", "B", "C", "D"]
-    correct_pos = random.randint(0, 3)
-    correct_letter = letters[correct_pos]
-    all_defs: list[str] = list(wrong[:3])
-    all_defs.insert(correct_pos, correct)
-    options = [f"{l}. {d[0].upper() + d[1:]}" for l, d in zip(letters, all_defs)]
-    return {"options": options, "correct_answer": correct_letter}
+        return None
 
 
 def _llm_generate_vocab_questions(
