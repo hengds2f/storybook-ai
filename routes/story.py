@@ -238,28 +238,60 @@ def ai_status():
     """Diagnostic endpoint to check AI configuration with safe key prefix disclosure."""
     if "user_id" not in session:
         return jsonify({"error": "Not authenticated"}), 401
-    
+
+    from services import llm_service
+
+    hf_token = config.HF_API_KEY
+    token_valid = False
+    token_user = None
+    token_error = None
+
+    if not hf_token:
+        token_error = "HF_TOKEN secret is missing — add it in Space Settings → Secrets"
+    else:
+        # Validate the token by calling the HF whoami endpoint
+        try:
+            import requests as _req
+            resp = _req.get(
+                "https://huggingface.co/api/whoami",
+                headers={"Authorization": f"Bearer {hf_token}"},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                token_valid = True
+                token_user = resp.json().get("name", "HF User")
+            else:
+                token_error = f"Token rejected by HuggingFace (HTTP {resp.status_code})"
+        except Exception as e:
+            # Network error — assume token is present but unverifiable
+            token_valid = True
+            token_user = "HF (unverified)"
+
     data_dir = os.path.join("static", "generated_images")
-    
+
     def get_prefix(key):
         if not key: return "MISSING"
         return f"{key[:4]}...{key[-4:]}" if len(key) > 8 else "****"
 
-    from services import llm_service
-
     status = {
+        # Fields expected by the dashboard JS
+        "token_valid": token_valid,
+        "token_user": token_user,
+        "token_error": token_error,
+        "paint_pool_models": [config.HF_IMAGE_MODEL],
+        # Extended diagnostics
         "gemini_key_present": bool(config.get_gemini_key()),
         "gemini_prefix": get_prefix(config.get_gemini_key()),
-        "hf_token_present": bool(config.HF_API_KEY),
-        "hf_prefix": get_prefix(config.HF_API_KEY),
+        "hf_token_present": bool(hf_token),
+        "hf_prefix": get_prefix(hf_token),
         "data_dir_exists": os.path.exists(data_dir),
         "data_dir_writable": os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
-        "primary_engine": f"{config.TEXT_GEN_ENGINE} (Act 1-7: {config.GEMINI_MODEL_STANDARD}, Act 8: {config.GEMINI_MODEL_PRO})",
+        "primary_engine": f"{config.TEXT_GEN_ENGINE} ({config.GEMINI_MODEL_STANDARD})",
         "image_engine": f"{config.IMAGE_GEN_ENGINE} ({config.HF_IMAGE_MODEL})",
         "last_narrative_error": llm_service.get_last_error(),
-        "debug_view": "/api/debug-view"
+        "debug_view": "/api/debug-view",
     }
-    
+
     return jsonify(status), 200
 
 
