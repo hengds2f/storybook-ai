@@ -14,6 +14,7 @@ const Reader = (() => {
   let isPaused = false;
   let readerSessionId = null;    // one UUID per page-load reading session
   const _questions = new Map(); // sectionIdx → { questionId, startTime }
+  const _vocabState = new Map(); // sectionIdx → { ids[], curr, correct, startTime }
 
   const CHAPTER_ICONS = {
     'Introduction': ['🌅', '📖', '🌟'],
@@ -144,10 +145,10 @@ const Reader = (() => {
         <div class="story-content-block" id="sectionContent-${idx}">
           ${contentHtml}
         </div>
-        ${section.question_id ? `
-        <div class="question-card" id="q-card-${idx}">
-          <button class="question-trigger" onclick="Reader.showQuestion(${idx}, '${section.question_id}')">
-            🤔 Test Your Understanding
+        ${section.question_ids && section.question_ids.length > 0 ? `
+        <div class="question-card vocab-quiz-card" id="q-card-${idx}">
+          <button class="question-trigger vocab-quiz-trigger" onclick="Reader.startVocabQuiz(${idx})">
+            📚 Vocabulary Quiz &middot; ${section.question_ids.length} words
           </button>
           <div class="question-body" id="q-body-${idx}" style="display:none;"></div>
         </div>` : ''}
@@ -449,6 +450,167 @@ const Reader = (() => {
     }
   }
 
+  // ── Vocabulary Quiz (multi-question) ──────────────────────────────────
+
+  function startVocabQuiz(idx) {
+    const section = story.content.sections[idx];
+    const ids = (section && section.question_ids) || [];
+    if (ids.length === 0) return;
+
+    const card = document.getElementById(`q-card-${idx}`);
+    const body = document.getElementById(`q-body-${idx}`);
+    if (!card || !body) return;
+
+    const trigger = card.querySelector('.vocab-quiz-trigger');
+    if (trigger) trigger.style.display = 'none';
+    body.style.display = 'block';
+
+    _vocabState.set(idx, { ids, curr: 0, correct: 0, startTime: Date.now() });
+    _showVocabQuestion(idx);
+  }
+
+  async function _showVocabQuestion(idx) {
+    const state = _vocabState.get(idx);
+    if (!state) return;
+    const { ids, curr } = state;
+    const questionId = ids[curr];
+    const body = document.getElementById(`q-body-${idx}`);
+    if (!body) return;
+
+    body.innerHTML = '<p class="question-loading">Loading word…</p>';
+
+    try {
+      const res = await fetch(`/api/ml/questions/${encodeURIComponent(questionId)}`);
+      if (!res.ok) {
+        body.innerHTML = '<p class="question-loading">Question not available.</p>';
+        return;
+      }
+      const q = await res.json();
+      state.qStartTime = Date.now();
+
+      body.innerHTML = `
+        <div class="vocab-quiz-header">
+          <span class="vocab-quiz-progress">Word ${curr + 1} / ${ids.length}</span>
+          <span class="vocab-quiz-label">📖 Vocabulary Quiz</span>
+        </div>
+        <p class="question-text">${App.escapeHtml(q.question_text)}</p>
+        <div class="question-options" id="vq-opts-${idx}"></div>
+        <div class="question-feedback" id="vq-feedback-${idx}" style="display:none;"></div>
+        <div id="vq-next-${idx}" style="display:none;"></div>
+      `;
+
+      const optsEl = document.getElementById(`vq-opts-${idx}`);
+      (q.options || []).forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'question-option';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => _submitVocabAnswer(idx, opt, questionId));
+        optsEl.appendChild(btn);
+      });
+    } catch (e) {
+      console.error('Failed to load vocab question:', e);
+      body.innerHTML = '<p class="question-loading">Question not available.</p>';
+    }
+  }
+
+  async function _submitVocabAnswer(idx, answer, questionId) {
+    const state = _vocabState.get(idx);
+    if (!state) return;
+    const responseTimeMs = Date.now() - (state.qStartTime || state.startTime);
+
+    const optsEl = document.getElementById(`vq-opts-${idx}`);
+    if (optsEl) optsEl.querySelectorAll('.question-option').forEach(btn => { btn.disabled = true; });
+
+    try {
+      const res = await fetch(`/api/ml/questions/${encodeURIComponent(questionId)}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_id:       story.profile_id,
+          session_id:       readerSessionId,
+          answer:           answer,
+          response_time_ms: responseTimeMs,
+        }),
+      });
+      const data = await res.json();
+
+      const correctLetter = (data.correct_answer || '').trim().toUpperCase();
+      let correctFullText = '';
+      if (optsEl) {
+        optsEl.querySelectorAll('.question-option').forEach(btn => {
+          const t = btn.textContent.trim();
+          if (correctLetter && t.toUpperCase().startsWith(correctLetter + '.')) {
+            btn.classList.add('correct');
+            correctFullText = t;
+          } else if (t === answer.trim() && !data.is_correct) {
+            btn.classList.add('incorrect');
+          }
+        });
+      }
+
+      if (data.is_correct) state.correct += 1;
+
+      const feedbackEl = document.getElementById(`vq-feedback-${idx}`);
+      if (feedbackEl) {
+        feedbackEl.style.display = 'block';
+        feedbackEl.className = `question-feedback ${data.is_correct ? 'correct' : 'incorrect'}`;
+        let msg = data.is_correct ? '✅ Correct!' : '❌ Not quite.';
+        if (!data.is_correct && correctFullText) msg += ' The answer was: ' + correctFullText;
+        feedbackEl.textContent = msg;
+      }
+
+      // Advance to next question after a short delay
+      const nextEl = document.getElementById(`vq-next-${idx}`);
+      if (nextEl) {
+        const isLast = (state.curr >= state.ids.length - 1);
+        nextEl.style.display = 'block';
+        if (!isLast) {
+          const btn = document.createElement('button');
+          btn.className = 'vocab-next-btn';
+          btn.textContent = 'Next Word →';
+          btn.addEventListener('click', () => {
+            state.curr += 1;
+            _showVocabQuestion(idx);
+          });
+          nextEl.appendChild(btn);
+        } else {
+          _showVocabScore(idx);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to submit vocab answer:', e);
+    }
+  }
+
+  function _showVocabScore(idx) {
+    const state = _vocabState.get(idx);
+    if (!state) return;
+    const { correct, ids } = state;
+    const total = ids.length;
+    const pct = Math.round((correct / total) * 100);
+
+    let emoji = '⭐';
+    let msg   = 'Good effort!';
+    if (pct === 100)      { emoji = '🏆'; msg = 'Perfect score!'; }
+    else if (pct >= 80)   { emoji = '🌟'; msg = 'Excellent!'; }
+    else if (pct >= 60)   { emoji = '✨'; msg = 'Great work!'; }
+    else if (pct >= 40)   { emoji = '👍'; msg = 'Keep it up!'; }
+
+    const body = document.getElementById(`q-body-${idx}`);
+    if (body) {
+      body.innerHTML = `
+        <div class="vocab-score-card">
+          <div class="vocab-score-emoji">${emoji}</div>
+          <div class="vocab-score-label">${msg}</div>
+          <div class="vocab-score-fraction">You got <strong>${correct} / ${total}</strong> words correct!</div>
+          <div class="vocab-score-bar-wrap">
+            <div class="vocab-score-bar-fill" style="width:${pct}%;"></div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
   // ── Delete Story ───────────────────────────────────────────────────────
   async function deleteStory() {
     if (!story) return;
@@ -484,6 +646,6 @@ const Reader = (() => {
   return {
     init, toggleReadAloud, startReadAloud, stopReadAloud,
     togglePlayPause, prevSentence, nextSentence, setSpeed,
-    deleteStory, showQuestion
+    deleteStory, showQuestion, startVocabQuiz
   };
 })();

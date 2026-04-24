@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, session
 from services.storage import get_stories_for_user, get_stats_for_user, get_profiles_for_user
+from services.storage import get_db
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -57,19 +58,45 @@ def dashboard_data():
         ml_state = get_ml_state(pid) or {}
 
         # Build vocabulary progression from this profile's stories (oldest → newest)
+        # Include per-story vocab quiz score: how many vocabulary questions answered correctly
         profile_stories = sorted(
             [s for s in stories if s.get("profile_id") == pid],
             key=lambda s: s.get("created_at", ""),
         )
+
+        # Pre-fetch vocab quiz accuracy per story for this profile
+        import json as _json
+        conn = get_db()
+        vocab_rows = conn.execute(
+            """SELECT ql.story_id,
+                      COUNT(*) AS total,
+                      SUM(CASE WHEN json_extract(re.payload, '$.is_correct') = 1 THEN 1 ELSE 0 END) AS correct
+               FROM reading_events re
+               JOIN question_log ql
+                 ON json_extract(re.payload, '$.question_id') = ql.question_id
+               WHERE re.profile_id = ?
+                 AND re.event_type  = 'question_answered'
+                 AND ql.question_type = 'vocabulary'
+               GROUP BY ql.story_id""",
+            (pid,),
+        ).fetchall()
+        conn.close()
+        vocab_quiz_by_story = {
+            row["story_id"]: round(row["correct"] / row["total"], 4) if row["total"] > 0 else None
+            for row in vocab_rows
+        }
+
         vocab_progression = []
         for s in profile_stories[-12:]:  # last 12 stories
             params = s.get("parameters", {})
+            story_id = s["id"]
             vocab_progression.append({
-                "story_id":       s["id"],
-                "title":          s["title"],
-                "vocabulary_hint":  params.get("vocabulary_hint", ""),
-                "complexity_hint":  params.get("complexity_hint", ""),
-                "created_at":     s["created_at"],
+                "story_id":          story_id,
+                "title":             s["title"],
+                "vocabulary_hint":   params.get("vocabulary_hint", ""),
+                "complexity_hint":   params.get("complexity_hint", ""),
+                "vocab_quiz_score":  vocab_quiz_by_story.get(story_id),  # float 0–1 or None
+                "created_at":        s["created_at"],
             })
 
         profiles_ml.append({

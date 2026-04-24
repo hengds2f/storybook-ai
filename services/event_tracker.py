@@ -352,37 +352,39 @@ def recompute_profile_features(profile_id: str) -> dict:
     _rl_max = {"3-5": 4.0, "6-8": 7.5, "9-12": 10.0}.get(age_group, 10.0)
     reading_level_score = round(max(1.0, min(_rl_max, _rl_base + _rl_adj)), 2)
 
-    # ── Vocabulary score ──────────────────────────────────────────────────
-    # Primary signal: vocabulary_hint levels used in recent stories.
-    # introductory → 2.5, grade_level → 5.5, stretch → 8.5
-    # Weight recent stories more heavily (linear ramp).
-    _hint_midpoints = {"introductory": 2.5, "grade_level": 5.5, "stretch": 8.5}
+    # ── Vocabulary score (from vocabulary quiz accuracy) ──────────────────
+    # Primary signal: % of vocabulary-type questions answered correctly.
+    # Fall back to age group defaults when no vocabulary questions exist yet.
     _age_vocab_default = {"3-5": 2.5, "6-8": 5.5, "9-12": 8.5}.get(age_group, 5.5)
-    story_hint_rows = conn.execute(
-        "SELECT parameters FROM stories WHERE profile_id = ? ORDER BY created_at DESC LIMIT 10",
+    vocab_answered_row = conn.execute(
+        """SELECT COUNT(*) FROM reading_events re
+           JOIN question_log ql
+             ON json_extract(re.payload, '$.question_id') = ql.question_id
+           WHERE re.profile_id = ?
+             AND re.event_type  = 'question_answered'
+             AND ql.question_type = 'vocabulary'""",
         (profile_id,),
-    ).fetchall()
-    vocab_list = []
-    for sr in story_hint_rows:
-        try:
-            sp = json.loads(sr[0])
-            hint = sp.get("vocabulary_hint", "")
-            if hint in _hint_midpoints:
-                vocab_list.append(_hint_midpoints[hint])
-        except Exception:
-            pass
-    vocab_list.reverse()  # oldest first so recent stories carry more weight
-    if vocab_list:
-        n_v = len(vocab_list)
-        weights_v = list(range(1, n_v + 1))   # 1,2,…,n (most recent = n = highest)
-        vocab_base = sum(s * w for s, w in zip(vocab_list, weights_v)) / sum(weights_v)
+    ).fetchone()[0]
+    vocab_correct_row = conn.execute(
+        """SELECT COUNT(*) FROM reading_events re
+           JOIN question_log ql
+             ON json_extract(re.payload, '$.question_id') = ql.question_id
+           WHERE re.profile_id = ?
+             AND re.event_type  = 'question_answered'
+             AND ql.question_type = 'vocabulary'
+             AND json_extract(re.payload, '$.is_correct') = 1""",
+        (profile_id,),
+    ).fetchone()[0]
+
+    if vocab_answered_row > 0:
+        vocab_accuracy = vocab_correct_row / vocab_answered_row
+        # Scale to 1–10 range: 0% → age_base * 0.4, 100% → _rl_max
+        vocab_base = _age_vocab_default * 0.4 + vocab_accuracy * (_rl_max - _age_vocab_default * 0.4)
     else:
+        # Cold start: use age group default + small bonus for completion / speed
         vocab_base = _age_vocab_default
-    # Behavioral adjustments
-    _v_qa_bonus    = min(1.5, question_accuracy * 2.0)
-    _v_cr_bonus    = min(0.75, completion_rate * 1.0)
-    _v_speed_adj   = max(-0.5, min(0.5, (300.0 - avg_time_per_word_ms) / 600.0)) if avg_time_per_word_ms > 0 else 0.0
-    vocabulary_score = round(max(1.0, min(_rl_max, vocab_base + _v_qa_bonus + _v_cr_bonus + _v_speed_adj)), 2)
+    _v_speed_adj = max(-0.5, min(0.5, (300.0 - avg_time_per_word_ms) / 600.0)) if avg_time_per_word_ms > 0 else 0.0
+    vocabulary_score = round(max(1.0, min(_rl_max, vocab_base + _v_speed_adj)), 2)
 
     conn.close()
 

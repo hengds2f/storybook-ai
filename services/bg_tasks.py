@@ -6,13 +6,8 @@ from services.llm_service import generate_story_8act, count_words
 from services.story_builder import parse_story
 from services.image_service import generate_image
 
-# Section titles that trigger interactive questions and their question types
-# Maps section title → (question_type, act_number_for_db)
-_SECTION_QUESTION_MAP = {
-    "Introduction": ("comprehension", 2),  # comprehension after setup
-    "Challenge":    ("prediction",    5),  # predict what comes next
-    "Moral":        ("reflection",    8),  # reflect on the lesson
-}
+# All named sections get 5 vocabulary questions each (Poem skipped — short verse text)
+_VOCAB_SECTIONS = {"Introduction", "Challenge", "Resolution", "Moral"}
 
 def start_story_generation_thread(task_id: str, app: Flask):
     """Spawn a background thread to generate a story."""
@@ -152,34 +147,40 @@ def _word_count_for_age(age_group: str) -> int:
 
 def _generate_act_questions(profile_id: str, story_id: str, sections: list, params: dict):
     """
-    Pre-generate questions for Introduction, Challenge, and Moral sections and
-    attach question_id to each section so the reader can show it.
-    Each section is handled independently — a failure for one does not block others.
+    Generate 5 vocabulary questions for each named story section (Introduction,
+    Challenge, Resolution, Moral) by extracting words from the section text.
+    Attaches question_ids list to each section for the reader to render a quiz.
+    Each section is handled independently — a failure does not block others.
     """
-    from services.ml_service import generate_question
+    from services.ml_service import generate_vocab_questions, VOCAB_QUESTIONS_PER_SECTION
     age_group = params.get("age_group", "6-8")
+    section_act_map = {
+        "Introduction": 2,
+        "Challenge":    5,
+        "Resolution":   6,
+        "Moral":        8,
+    }
 
     for section in sections:
         title = section.get("title", "")
-        if title not in _SECTION_QUESTION_MAP:
+        if title not in _VOCAB_SECTIONS:
             continue
-        question_type, act_number = _SECTION_QUESTION_MAP[title]
         act_text = section.get("content", "") or section.get("text", "")
-        if not act_text or len(act_text) < 50:
+        if not act_text or len(act_text) < 60:
             continue
+        act_number = section_act_map.get(title, 1)
         try:
-            q = generate_question(
+            questions = generate_vocab_questions(
                 profile_id=profile_id,
                 story_id=story_id,
                 act_number=act_number,
                 act_text=act_text,
                 age_group=age_group,
-                question_type=question_type,
-                use_llm=True,
+                n=VOCAB_QUESTIONS_PER_SECTION,
             )
-            # Attach question_id to the section so the reader can show it
-            section["question_id"] = q["question_id"]
-            section["question_type"] = q["question_type"]
-            print(f"[BG_TASK] Question generated for section '{title}' (act {act_number}): {q['question_id']}")
+            section["question_ids"] = [q["question_id"] for q in questions]
+            section["question_type"] = "vocabulary"
+            print(f"[BG_TASK] {len(questions)} vocab questions for '{title}': "
+                  f"{[q['question_id'][:8] for q in questions]}")
         except Exception as e:
-            print(f"[BG_TASK] Question generation failed for section '{title}' (non-fatal): {e}")
+            print(f"[BG_TASK] Vocab question generation failed for '{title}' (non-fatal): {e}")

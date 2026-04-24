@@ -297,16 +297,21 @@ const Dashboard = (() => {
       const levelMeta  = hintMeta[p.vocabulary_hint] || hintMeta[''];
       const qaPct      = Math.round((p.question_accuracy || 0) * 100);
 
-      // Mini progression chart — SVG bars (oldest → newest)
+      // Mini progression chart — SVG bars (oldest → newest) using vocab quiz score
       const prog = p.vocab_progression || [];
       const bars = prog.map((item, i) => {
-        const meta  = hintMeta[item.vocabulary_hint] || hintMeta[''];
-        const h     = meta.pct;           // bar height %
+        const score = item.vocab_quiz_score;   // 0.0–1.0 or null (not yet taken)
+        const h     = score != null ? Math.round(score * 100) : 20;  // null → flat bar
+        const color = score == null  ? '#94a3b8'               // grey: no quiz yet
+                    : score >= 0.7   ? '#10b981'               // green: 70%+
+                    : score >= 0.4   ? '#6366f1'               // indigo: 40-70%
+                    :                  '#ef4444';              // red: < 40%
         const x     = (i / Math.max(prog.length, 1)) * 100;
         const w     = Math.max(4, 90 / Math.max(prog.length, 1));
-        const title = App.escapeHtml(`${item.title} — ${meta.label}`);
+        const pctLabel = score != null ? `${Math.round(score * 100)}%` : 'No quiz';
+        const title = App.escapeHtml(`${item.title} — ${pctLabel}`);
         return `<rect x="${x.toFixed(1)}%" y="${100 - h}%" width="${(w - 1).toFixed(1)}%"
-          height="${h}%" fill="${meta.color}" rx="2" opacity="0.9">
+          height="${h}%" fill="${color}" rx="2" opacity="0.9">
           <title>${title}</title></rect>`;
       }).join('');
 
@@ -368,11 +373,12 @@ const Dashboard = (() => {
           ${coldNote}
 
           <div class="vocab-progression-section">
-            <div class="vocab-progression-label">Story Vocabulary Progression</div>
+            <div class="vocab-progression-label">Vocabulary Quiz Scores</div>
             <div class="vocab-progression-legend">
-              <span style="color:#10b981;">■ Simple</span>
-              <span style="color:#6366f1;">■ Grade Level</span>
-              <span style="color:#a855f7;">■ Advanced</span>
+              <span style="color:#10b981;">■ 70%+</span>
+              <span style="color:#6366f1;">■ 40-70%</span>
+              <span style="color:#ef4444;">■ &lt;40%</span>
+              <span style="color:#94a3b8;">■ Not taken</span>
             </div>
             <div class="vocab-chart-wrap">${svgChart}</div>
           </div>

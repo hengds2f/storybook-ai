@@ -103,6 +103,48 @@ QUESTION_TEMPLATES = {
 # Minimum events before switching from cold-start to preference-based recommendations
 COLD_START_THRESHOLD = 3  # completed stories
 
+# How many vocabulary questions to generate per story section
+VOCAB_QUESTIONS_PER_SECTION = 5
+
+# Rule-based fallback vocabulary by age group
+# Each entry: (word, definition, [wrong_def_1, wrong_def_2, wrong_def_3])
+_FALLBACK_VOCAB: dict[str, list] = {
+    "3-5": [
+        ("tiny",      "very small",                ["very big", "very loud", "very fast"]),
+        ("brave",     "not afraid of hard things", ["very hungry", "very sleepy", "very silly"]),
+        ("giggle",    "a small laugh",             ["a type of bird", "a kind of jump", "a big sneeze"]),
+        ("glimmer",   "a soft, shining light",     ["a loud noise", "a dark shadow", "a cold wind"]),
+        ("wander",    "to walk without a plan",    ["to swim quickly", "to eat slowly", "to sleep deeply"]),
+        ("cozy",      "warm and comfortable",      ["wet and muddy", "tall and heavy", "sharp and pointy"]),
+        ("sturdy",    "strong and solid",          ["soft and fluffy", "quick and light", "round and smooth"]),
+        ("curious",   "wanting to know things",    ["feeling very tired", "feeling angry", "feeling hungry"]),
+    ],
+    "6-8": [
+        ("gleaming",   "shining brightly",                       ["making loud sounds", "moving very quickly", "smelling sweet"]),
+        ("ancient",    "very very old",                          ["brand new", "very tiny", "quite heavy"]),
+        ("trembled",   "shook with fear or cold",                ["laughed loudly", "slept deeply", "ran swiftly"]),
+        ("enchanted",  "put under a magic spell",                ["very cold", "made of wood", "very hungry"]),
+        ("determined", "having a firm decision to do something", ["feeling very lost", "easily frightened", "quite sleepy"]),
+        ("peculiar",   "strange or unusual",                     ["very ordinary", "quite beautiful", "extremely fast"]),
+        ("whimpered",  "made a soft crying sound",               ["shouted loudly", "jumped high", "ate quickly"]),
+        ("soared",     "flew high up in the air",                ["dug deep underground", "swam far away", "hid quietly"]),
+        ("mischievous","playfully causing trouble",              ["very serious", "very sleepy", "very hungry"]),
+        ("tranquil",   "calm and quiet",                         ["loud and busy", "cold and icy", "dark and scary"]),
+    ],
+    "9-12": [
+        ("luminous",   "giving off a bright glow",               ["completely dark", "extremely heavy", "very noisy"]),
+        ("tenacious",  "refusing to give up",                    ["easily discouraged", "very generous", "extremely forgetful"]),
+        ("foreboding", "a feeling that something bad will happen",["a feeling of great joy", "a type of weather", "a kind of food"]),
+        ("cryptic",    "mysterious and hard to understand",       ["very clear and simple", "extremely colourful", "quite warm"]),
+        ("ethereal",   "delicate and heavenly",                   ["rough and heavy", "loud and sharp", "cold and bitter"]),
+        ("labyrinth",  "a complicated maze",                      ["a straight road", "a calm lake", "a tall tower"]),
+        ("resilient",  "able to recover quickly from difficulty", ["easily broken", "very heavy", "quite boring"]),
+        ("ominous",    "suggesting something bad will happen",    ["cheerful and bright", "soft and gentle", "warm and cosy"]),
+        ("elusive",    "hard to find or catch",                   ["very easy to see", "extremely heavy", "quite ordinary"]),
+        ("forsaken",   "abandoned and alone",                     ["surrounded by friends", "full of treasure", "very busy"]),
+    ],
+}
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -337,6 +379,48 @@ def generate_question(
     )
     save_question(question)
     return question
+
+
+def generate_vocab_questions(
+    profile_id: str,
+    story_id: str,
+    act_number: int,
+    act_text: str,
+    age_group: str,
+    n: int = VOCAB_QUESTIONS_PER_SECTION,
+) -> list[dict]:
+    """
+    Extract challenge words from the story section and generate vocabulary MCQ
+    questions to test whether the reader knows each word's meaning.
+
+    Tries LLM generation first (returns up to `n` questions).
+    Falls back to rule-based templates using pre-defined word lists.
+
+    Each returned question dict is already saved to question_log.
+
+    Returns:
+        List of saved question dicts, each with question_id.
+    """
+    # Try LLM path first
+    llm_questions = _llm_generate_vocab_questions(act_text, age_group, n)
+    if llm_questions:
+        saved = []
+        for qdata in llm_questions[:n]:
+            qdata.update({
+                "question_id": str(uuid.uuid4()),
+                "profile_id": profile_id,
+                "story_id": story_id,
+                "act_number": act_number,
+                "question_type": "vocabulary",
+                "generated_by": "llm",
+            })
+            save_question(qdata)
+            saved.append(qdata)
+        return saved
+
+    # Rule-based fallback — pick words the text actually contains when possible,
+    # then supplement from the age-group word bank.
+    return _rule_based_vocab_questions(profile_id, story_id, act_number, act_text, age_group, n)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -578,6 +662,140 @@ def _vocab_score_label(score: float) -> str:
     if score <= 7.0:
         return "Grade Level"
     return "Advanced"
+
+
+def _llm_generate_vocab_questions(act_text: str, age_group: str, n: int) -> list[dict] | None:
+    """
+    Ask Gemini to identify challenge words in the text and create n vocabulary MCQ
+    questions. Returns a list of question dicts or None on any failure.
+    """
+    try:
+        import config
+        if not config.GEMINI_API_KEY:
+            return None
+
+        import google.genai as genai
+        import re
+
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+
+        prompt = f"""You are a vocabulary tutor for children aged {age_group}.
+
+Story excerpt:
+\"\"\"
+{act_text[:1200]}
+\"\"\"
+
+Task: Identify {n} words from this text that are good vocabulary teaching words for age {age_group}.
+Pick words that appear in the text and that children might not know yet.
+Avoid names, very simple words (the, and, was, big, etc.), and very obscure words.
+
+For each word, write a multiple-choice question asking what the word means.
+Use 4 options (A, B, C, D). One option must be the correct definition. The others are plausible but wrong.
+Vary which letter is correct across questions.
+
+Return ONLY a valid JSON array with exactly {n} objects, no other text:
+[
+  {{
+    "word": "gleaming",
+    "question_text": "In the story, what does the word \\"gleaming\\" mean?",
+    "options": ["A. Making a loud noise", "B. Shining brightly", "C. Moving very fast", "D. Feeling sad"],
+    "correct_answer": "B"
+  }},
+  ...
+]
+
+Rules:
+- Every question_text must include the word and end with a question mark
+- All options must start with "A.", "B.", "C.", or "D."
+- Language must suit age {age_group}
+- No scary, violent, or inappropriate content"""
+
+        response = client.models.generate_content(
+            model=config.GEMINI_MODEL_STANDARD,
+            contents=prompt,
+        )
+        raw = response.text.strip()
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
+
+        items = json.loads(raw)
+        if not isinstance(items, list) or len(items) == 0:
+            return None
+
+        result = []
+        for item in items[:n]:
+            if not all(k in item for k in ("question_text", "options", "correct_answer")):
+                continue
+            if not item["question_text"].endswith("?"):
+                item["question_text"] = item["question_text"].rstrip(".") + "?"
+            result.append({
+                "question_text": item["question_text"],
+                "options": item["options"][:4],
+                "correct_answer": item["correct_answer"].strip().upper(),
+                "word": item.get("word", ""),
+            })
+
+        return result if result else None
+
+    except Exception as e:
+        print(f"[ML] LLM vocab question generation failed: {e}")
+        return None
+
+
+def _rule_based_vocab_questions(
+    profile_id: str,
+    story_id: str,
+    act_number: int,
+    act_text: str,
+    age_group: str,
+    n: int,
+) -> list[dict]:
+    """
+    Build vocabulary questions from the pre-defined word bank.
+    Preferentially uses words that actually appear in act_text.
+    """
+    bank = _FALLBACK_VOCAB.get(age_group, _FALLBACK_VOCAB["6-8"])
+    text_lower = act_text.lower()
+
+    # Sort: words found in text come first, then random others
+    in_text  = [entry for entry in bank if entry[0].lower() in text_lower]
+    not_text = [entry for entry in bank if entry[0].lower() not in text_lower]
+    random.shuffle(not_text)
+    ordered = (in_text + not_text)[:n]
+
+    letters = ["A", "B", "C", "D"]
+    questions = []
+    for word, correct_def, wrong_defs in ordered:
+        correct_letter = random.choice(letters)
+        options_pool = wrong_defs[:3]
+        all_opts: dict[str, str] = {}
+        other_letters = [l for l in letters if l != correct_letter][:len(options_pool)]
+        all_opts[correct_letter] = correct_def
+        for l, d in zip(other_letters, options_pool):
+            all_opts[l] = d
+        # Fill missing letter if bank has < 3 wrong defs
+        for l in letters:
+            if l not in all_opts:
+                all_opts[l] = "none of these"
+        opts_list = [f"{l}. {all_opts[l]}" for l in letters]
+
+        q = {
+            "question_id":   str(uuid.uuid4()),
+            "profile_id":    profile_id,
+            "story_id":      story_id,
+            "act_number":    act_number,
+            "question_text": f'What does the word "{word}" mean?',
+            "question_type": "vocabulary",
+            "options":       opts_list,
+            "correct_answer": correct_letter,
+            "word":          word,
+            "generated_by":  "rule_based",
+        }
+        save_question(q)
+        questions.append(q)
+
+    return questions
 
 
 def _extract_first_character(text: str) -> str:
