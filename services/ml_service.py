@@ -410,26 +410,33 @@ def generate_vocab_questions(
 
     if pre_selected_words:
         # ── Primary path: words pre-verified to be in the chapter text ──────
-        llm_questions = _llm_questions_for_words(pre_selected_words, act_text, age_group)
-        if llm_questions:
-            saved = []
-            for qdata in llm_questions:
-                qdata.update({
-                    "question_id": str(uuid.uuid4()),
-                    "profile_id": profile_id,
-                    "story_id": story_id,
-                    "act_number": act_number,
-                    "question_type": "vocabulary",
-                    "generated_by": "llm",
-                })
-                save_question(qdata)
-                saved.append(qdata)
-                used_words.add(qdata.get("word", "").lower())
-            return saved
-        # LLM unavailable or failed — build simple questions from the given words
-        return _simple_questions_for_words(
-            pre_selected_words, profile_id, story_id, act_number, act_text, used_words
+        # Split into dict-backed (guaranteed correct) and non-dict words
+        dict_words = [w for w in pre_selected_words if w.lower() in _VOCAB_DEFINITIONS]
+        llm_words = [w for w in pre_selected_words if w.lower() not in _VOCAB_DEFINITIONS]
+
+        # 1. Build questions from the built-in dict — no LLM, always correct
+        saved = _simple_questions_for_words(
+            dict_words, profile_id, story_id, act_number, act_text, used_words
         )
+
+        # 2. For non-dict words, ask LLM
+        if llm_words:
+            llm_questions = _llm_questions_for_words(llm_words, act_text, age_group)
+            if llm_questions:
+                for qdata in llm_questions:
+                    qdata.update({
+                        "question_id": str(uuid.uuid4()),
+                        "profile_id": profile_id,
+                        "story_id": story_id,
+                        "act_number": act_number,
+                        "question_type": "vocabulary",
+                        "generated_by": "llm",
+                    })
+                    save_question(qdata)
+                    saved.append(qdata)
+                    used_words.add(qdata.get("word", "").lower())
+
+        return saved
 
     # ── Legacy path: LLM picks words and writes MCQs in one pass ────────────
     llm_questions = _llm_generate_vocab_questions(act_text, age_group, n, used_words)
@@ -739,11 +746,19 @@ def allocate_story_vocab_words(
         if title not in section_data:
             continue
         _text_lower, freq, _proper_nouns = section_data[title]
-        candidates = sorted(
-            [(w, c) for w, c in freq.items() if w not in global_used],
+        # Prefer words in _VOCAB_DEFINITIONS (guaranteed correct MCQ answers)
+        dict_cands = sorted(
+            [(w, c) for w, c in freq.items() if w in _VOCAB_DEFINITIONS and w not in global_used],
             key=lambda x: (-x[1], -len(x[0])),
         )
-        chosen = [w for w, _ in candidates[:n_per_section]]
+        other_cands = sorted(
+            [(w, c) for w, c in freq.items() if w not in _VOCAB_DEFINITIONS and w not in global_used],
+            key=lambda x: (-x[1], -len(x[0])),
+        )
+        chosen = [w for w, _ in dict_cands[:n_per_section]]
+        remaining = n_per_section - len(chosen)
+        if remaining > 0:
+            chosen += [w for w, _ in other_cands[:remaining]]
         result[title] = chosen
         global_used.update(chosen)
 
