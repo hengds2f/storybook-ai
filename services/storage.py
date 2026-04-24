@@ -197,6 +197,17 @@ def save_story(profile_id: str, user_id: str, title: str, parameters: dict, cont
     return story
 
 
+def update_story_content(story_id: str, content: dict) -> None:
+    """Update the serialized content of an existing story (e.g. to embed question_ids)."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE stories SET content = ? WHERE id = ?",
+        (json.dumps(content), story_id)
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_stories_for_profile(profile_id: str) -> list:
     conn = get_db()
     rows = conn.execute(

@@ -99,6 +99,15 @@ def process_story_generation(task_id: str, app: Flask):
             # ── ML: pre-generate questions for acts 3, 5, 8 ───────────────
             _generate_act_questions(profile_id, story_id, sections, params)
 
+            # Persist question_ids (embedded by _generate_act_questions into sections
+            # in-place) back into the stored story content in the DB.
+            try:
+                from services.storage import update_story_content
+                update_story_content(story_id, content)
+                print(f"[BG_TASK] Story content updated with question_ids: {story_id}")
+            except Exception as e:
+                print(f"[BG_TASK] Failed to persist question_ids to story: {e}")
+
             # ── ML event: session_ended ────────────────────────────────────
             _fire_event(profile_id, session_id, "session_ended", {
                 "total_time_ms":       elapsed_ms,

@@ -12,6 +12,8 @@ const Reader = (() => {
   let utterance = null;
   let speechRate = 0.9;
   let isPaused = false;
+  let readerSessionId = null;    // one UUID per page-load reading session
+  const _questions = new Map(); // sectionIdx → { questionId, startTime }
 
   const CHAPTER_ICONS = {
     'Introduction': ['🌅', '📖', '🌟'],
@@ -50,6 +52,10 @@ const Reader = (() => {
       }
 
       story = data.story;
+      // Unique session ID so question answers can be correlated with reading events
+      readerSessionId = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : (Math.random().toString(36) + Math.random().toString(36)).slice(2, 34);
       renderStory();
       buildSentenceIndex();
     } catch (e) {
@@ -138,6 +144,13 @@ const Reader = (() => {
         <div class="story-content-block" id="sectionContent-${idx}">
           ${contentHtml}
         </div>
+        ${section.question_id ? `
+        <div class="question-card" id="q-card-${idx}">
+          <button class="question-trigger" onclick="Reader.showQuestion(${idx}, '${section.question_id}')">
+            🤔 Test Your Understanding
+          </button>
+          <div class="question-body" id="q-body-${idx}" style="display:none;"></div>
+        </div>` : ''}
       `;
     }).join('');
   }
@@ -331,6 +344,103 @@ const Reader = (() => {
     }
   }
 
+  // ── Interactive Questions ──────────────────────────────────────────────
+
+  async function showQuestion(idx, questionId) {
+    const card = document.getElementById(`q-card-${idx}`);
+    const body = document.getElementById(`q-body-${idx}`);
+    if (!card || !body) return;
+
+    const trigger = card.querySelector('.question-trigger');
+    if (trigger) trigger.style.display = 'none';
+    body.style.display = 'block';
+    body.innerHTML = '<p class="question-loading">Loading question…</p>';
+
+    try {
+      const res = await fetch(`/api/ml/questions/${encodeURIComponent(questionId)}`);
+      if (!res.ok) {
+        body.innerHTML = '<p class="question-loading">Question not available.</p>';
+        return;
+      }
+      const q = await res.json();
+      _questions.set(idx, { questionId, startTime: Date.now() });
+
+      const typeLabels = {
+        comprehension: '💭 Comprehension Check',
+        prediction:    '🔮 What Happens Next?',
+        reflection:    '🌟 Think About It'
+      };
+      const typeLabel = typeLabels[q.question_type] || '🤔 Question';
+
+      body.innerHTML = `
+        <div class="question-type-label">${typeLabel}</div>
+        <p class="question-text">${App.escapeHtml(q.question_text)}</p>
+        <div class="question-options" id="q-opts-${idx}"></div>
+        <div class="question-feedback" id="q-feedback-${idx}" style="display:none;"></div>
+      `;
+
+      // Build option buttons via DOM to avoid template-literal escaping issues
+      const optsEl = document.getElementById(`q-opts-${idx}`);
+      (q.options || []).forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'question-option';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => _submitAnswer(idx, opt));
+        optsEl.appendChild(btn);
+      });
+    } catch (e) {
+      console.error('Failed to load question:', e);
+      body.innerHTML = '<p class="question-loading">Question not available.</p>';
+    }
+  }
+
+  async function _submitAnswer(idx, answer) {
+    const qData = _questions.get(idx);
+    if (!qData) return;
+    const { questionId, startTime } = qData;
+    const responseTimeMs = Date.now() - startTime;
+
+    // Lock all options immediately
+    const optsEl = document.getElementById(`q-opts-${idx}`);
+    if (optsEl) optsEl.querySelectorAll('.question-option').forEach(btn => { btn.disabled = true; });
+
+    try {
+      const res = await fetch(`/api/ml/questions/${encodeURIComponent(questionId)}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_id:       story.profile_id,
+          session_id:       readerSessionId,
+          answer:           answer,
+          response_time_ms: responseTimeMs,
+        }),
+      });
+      const data = await res.json();
+
+      // Colour correct / incorrect options
+      if (optsEl) {
+        optsEl.querySelectorAll('.question-option').forEach(btn => {
+          if (btn.textContent.trim() === (data.correct_answer || '').trim()) {
+            btn.classList.add('correct');
+          } else if (btn.textContent.trim() === answer.trim() && !data.is_correct) {
+            btn.classList.add('incorrect');
+          }
+        });
+      }
+
+      // Show feedback
+      const feedbackEl = document.getElementById(`q-feedback-${idx}`);
+      if (feedbackEl) {
+        feedbackEl.style.display = 'block';
+        feedbackEl.className = `question-feedback ${data.is_correct ? 'correct' : 'incorrect'}`;
+        feedbackEl.textContent = data.feedback
+          || (data.is_correct ? '✅ Correct!' : '❌ Not quite — keep reading!');
+      }
+    } catch (e) {
+      console.error('Failed to submit answer:', e);
+    }
+  }
+
   // ── Delete Story ───────────────────────────────────────────────────────
   async function deleteStory() {
     if (!story) return;
@@ -366,6 +476,6 @@ const Reader = (() => {
   return {
     init, toggleReadAloud, startReadAloud, stopReadAloud,
     togglePlayPause, prevSentence, nextSentence, setSpeed,
-    deleteStory
+    deleteStory, showQuestion
   };
 })();

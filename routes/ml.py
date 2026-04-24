@@ -293,6 +293,28 @@ def generate_question_endpoint():
     }), 201
 
 
+# ── GET /api/ml/questions/<question_id> ──────────────────────────────────────
+
+@ml_bp.route("/api/ml/questions/<question_id>", methods=["GET"])
+@login_required
+def fetch_question_by_id(question_id: str):
+    """
+    Fetch a question for display in the story reader.
+    The correct answer is intentionally omitted — it is only returned after
+    the child submits their answer via POST .../answer.
+    """
+    q = get_question(question_id)
+    if not q:
+        return jsonify({"error": "Question not found"}), 404
+    return jsonify({
+        "question_id":   q["question_id"],
+        "question_text": q["question_text"],
+        "question_type": q.get("question_type", "comprehension"),
+        "options":       q.get("answer_options", []),
+        "act_number":    q.get("act_number"),
+    }), 200
+
+
 # ── POST /api/ml/questions/<question_id>/answer ───────────────────────────────
 
 @ml_bp.route("/api/ml/questions/<question_id>/answer", methods=["POST"])
