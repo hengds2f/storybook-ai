@@ -13,8 +13,101 @@ const Reader = (() => {
   let speechRate = 0.9;
   let isPaused = false;
   let readerSessionId = null;    // one UUID per page-load reading session
+  let selectedVoiceName = null;   // null = auto-pick best voice
   const _questions = new Map(); // sectionIdx → { questionId, startTime }
   const _vocabState = new Map(); // sectionIdx → { ids[], curr, correct, startTime }
+
+  // ── Voice Picker ────────────────────────────────────────────────────────
+  const _FEMALE_NAMES = new Set([
+    'samantha','karen','victoria','moira','fiona','tessa','veena','zira','aria',
+    'jenny','susan','salli','joanna','kendra','kimberly','ivy','emma','amy',
+    'olivia','serena','kate','hazel','allison','ava','heather','nicky'
+  ]);
+  const _MALE_NAMES = new Set([
+    'alex','daniel','fred','thomas','lee','gordon','david','mark','james','joey',
+    'justin','matthew','brian','rishi','arthur','oliver','aaron','kevin','liam',
+    'noah','tom','paul','bruce','george','harry'
+  ]);
+
+  function _detectGender(voice) {
+    const n = voice.name.toLowerCase();
+    if (n.includes('female')) return 'female';
+    if (n.includes('male'))   return 'male';
+    for (const nm of _FEMALE_NAMES) if (n.includes(nm)) return 'female';
+    for (const nm of _MALE_NAMES)   if (n.includes(nm)) return 'male';
+    return null;
+  }
+
+  function _shortVoiceName(name) {
+    return name
+      .replace(/^(Microsoft|Google)\s+/i, '')
+      .replace(/\s+(Desktop|Online|Natural|Neural)$/i, '');
+  }
+
+  function _populateVoicePicker() {
+    const sel = document.getElementById('ralVoice');
+    if (!sel) return;
+
+    const allVoices = window.speechSynthesis.getVoices();
+    const enVoices  = allVoices.filter(v => v.lang.startsWith('en'));
+    if (enVoices.length === 0) return;
+
+    // Local/built-in voices first, then alphabetical
+    enVoices.sort((a, b) =>
+      (b.localService ? 1 : 0) - (a.localService ? 1 : 0) ||
+      a.name.localeCompare(b.name)
+    );
+
+    const females   = enVoices.filter(v => _detectGender(v) === 'female').slice(0, 5);
+    const males     = enVoices.filter(v => _detectGender(v) === 'male').slice(0, 5);
+    const usedNames = new Set([...females, ...males].map(v => v.name));
+    const extra     = enVoices
+      .filter(v => !usedNames.has(v.name))
+      .slice(0, Math.max(0, 10 - females.length - males.length));
+
+    let html = '<option value="">🎙 Auto</option>';
+    if (females.length) {
+      html += '<optgroup label="👩 Female">';
+      females.forEach(v => {
+        html += `<option value="${v.name}">${_shortVoiceName(v.name)}</option>`;
+      });
+      html += '</optgroup>';
+    }
+    if (males.length) {
+      html += '<optgroup label="👨 Male">';
+      males.forEach(v => {
+        html += `<option value="${v.name}">${_shortVoiceName(v.name)}</option>`;
+      });
+      html += '</optgroup>';
+    }
+    if (extra.length) {
+      html += '<optgroup label="🎙 Other">';
+      extra.forEach(v => {
+        html += `<option value="${v.name}">${_shortVoiceName(v.name)}</option>`;
+      });
+      html += '</optgroup>';
+    }
+
+    sel.innerHTML = html;
+
+    // Restore saved preference
+    const saved = localStorage.getItem('ral_voice');
+    if (saved && [...sel.options].some(o => o.value === saved)) {
+      sel.value = saved;
+      selectedVoiceName = saved;
+    }
+
+    // Show the picker now that it's populated
+    const wrap = document.getElementById('ralVoiceWrap');
+    if (wrap) wrap.style.display = '';
+  }
+
+  function setVoice(name) {
+    selectedVoiceName = name || null;
+    localStorage.setItem('ral_voice', name || '');
+    // If already reading, restart current sentence with new voice
+    if (isReading && !isPaused) speakSentence(currentSentenceIdx);
+  }
 
   // Extract the leading letter from "A. option text" → "A". Falls back to the raw value.
   function _optionLetter(opt) {
@@ -36,6 +129,12 @@ const Reader = (() => {
     if (!storyId || storyId === 'None') {
       showError();
       return;
+    }
+
+    // Populate voice picker (voices may load async in Chrome)
+    if ('speechSynthesis' in window) {
+      _populateVoicePicker();
+      window.speechSynthesis.onvoiceschanged = _populateVoicePicker;
     }
 
     if (!App.isAuthenticated()) {
@@ -245,15 +344,17 @@ const Reader = (() => {
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
-    // Pick a good voice
+    // Pick selected or auto-detect a good English voice
     const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes('Google UK English Female') ||
-      v.name.includes('Samantha') ||
-      v.name.includes('Karen') ||
-      (v.lang.startsWith('en') && v.localService)
-    );
-    if (preferred) utterance.voice = preferred;
+    const voiceToUse = selectedVoiceName
+      ? voices.find(v => v.name === selectedVoiceName)
+      : voices.find(v =>
+          v.name.includes('Google UK English Female') ||
+          v.name.includes('Samantha') ||
+          v.name.includes('Karen') ||
+          (v.lang.startsWith('en') && v.localService)
+        );
+    if (voiceToUse) utterance.voice = voiceToUse;
 
     utterance.onend = () => {
       if (isReading && !isPaused) {
@@ -656,7 +757,7 @@ const Reader = (() => {
 
   return {
     init, toggleReadAloud, startReadAloud, stopReadAloud,
-    togglePlayPause, prevSentence, nextSentence, setSpeed,
+    togglePlayPause, prevSentence, nextSentence, setSpeed, setVoice,
     deleteStory, showQuestion, startVocabQuiz
   };
 })();

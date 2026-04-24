@@ -81,6 +81,16 @@
     🐇
     <span id="ralSpeedLabel" style="min-width:32px;">0.9×</span>
   </div>
+
+  <div id="ralVoiceWrap" style="display:none; align-items:center; gap:0.35rem;">
+    <span style="font-size:0.8rem; color:var(--text-secondary);" title="Voice">🎙</span>
+    <select id="ralVoice" onchange="Reader.setVoice(this.value)"
+      style="font-size:0.75rem; padding:0.2rem 0.5rem; background:var(--color-surface-2);
+             border:1px solid rgba(255,255,255,0.12); border-radius:6px;
+             color:var(--text-primary); cursor:pointer; max-width:160px;">
+      <option value="">🎙 Auto</option>
+    </select>
+  </div>
 </div>
 
 {% endblock %}
