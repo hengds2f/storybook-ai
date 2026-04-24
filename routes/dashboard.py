@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, session
-from services.storage import get_stories_for_user, get_stats_for_user
+from services.storage import get_stories_for_user, get_stats_for_user, get_profiles_for_user
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -11,6 +11,7 @@ def dashboard_data():
 
     stories = get_stories_for_user(session["user_id"])
     stats = get_stats_for_user(session["user_id"])
+    profiles = get_profiles_for_user(session["user_id"])
 
     # Compute theme distribution
     theme_counts = {}
@@ -31,6 +32,7 @@ def dashboard_data():
         story_summaries.append({
             "id": s["id"],
             "title": s["title"],
+            "profile_id": s.get("profile_id", ""),
             "profile_name": s.get("profile_name", ""),
             "avatar_color": s.get("avatar_color", "#6366f1"),
             "created_at": s["created_at"],
@@ -41,6 +43,51 @@ def dashboard_data():
             "characters": params.get("characters", [])
         })
 
+    # ── Per-profile ML / vocabulary data ─────────────────────────────────
+    from services.ml_service import estimate_vocabulary_score, estimate_reading_level
+    from services.event_tracker import get_ml_state
+
+    profiles_ml = []
+    for profile in profiles:
+        pid = profile["id"]
+        age_group = profile.get("age_group", "6-8")
+
+        vocab   = estimate_vocabulary_score(pid, age_group)
+        reading = estimate_reading_level(pid, age_group)
+        ml_state = get_ml_state(pid) or {}
+
+        # Build vocabulary progression from this profile's stories (oldest → newest)
+        profile_stories = sorted(
+            [s for s in stories if s.get("profile_id") == pid],
+            key=lambda s: s.get("created_at", ""),
+        )
+        vocab_progression = []
+        for s in profile_stories[-12:]:  # last 12 stories
+            params = s.get("parameters", {})
+            vocab_progression.append({
+                "story_id":       s["id"],
+                "title":          s["title"],
+                "vocabulary_hint":  params.get("vocabulary_hint", ""),
+                "complexity_hint":  params.get("complexity_hint", ""),
+                "created_at":     s["created_at"],
+            })
+
+        profiles_ml.append({
+            "profile_id":            pid,
+            "profile_name":          profile["name"],
+            "avatar_color":          profile.get("avatar_color", "#6366f1"),
+            "age_group":             age_group,
+            "vocabulary_score":      vocab["score"],
+            "vocabulary_label":      vocab["label"],
+            "vocabulary_hint":       vocab["hint"],
+            "reading_level_score":   reading["score"],
+            "reading_level_label":   reading["label"],
+            "question_accuracy":     round(ml_state.get("question_accuracy", 0.0), 3),
+            "total_stories_completed": ml_state.get("total_stories_completed", 0),
+            "is_cold_start":         ml_state.get("total_stories_completed", 0) < 3,
+            "vocab_progression":     vocab_progression,
+        })
+
     return jsonify({
         "stats": {
             **stats,
@@ -48,5 +95,6 @@ def dashboard_data():
             "setting_counts": setting_counts,
             "age_counts": age_counts
         },
-        "stories": story_summaries
+        "stories": story_summaries,
+        "profiles_ml": profiles_ml,
     }), 200

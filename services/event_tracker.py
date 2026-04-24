@@ -106,6 +106,16 @@ def init_ml_tables():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ql_profile ON question_log(profile_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ql_story ON question_log(story_id)")
 
+    # ── Migrate existing DBs: add new columns if they don't exist yet ─────────
+    for col_def in [
+        "vocabulary_score REAL DEFAULT 5.0",
+        "reading_level_score REAL DEFAULT 5.0",
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE profile_ml_state ADD COLUMN {col_def}")
+        except Exception:
+            pass  # column already exists — safe to ignore
+
     conn.commit()
     conn.close()
 
@@ -313,10 +323,73 @@ def recompute_profile_features(profile_id: str) -> dict:
         "SELECT COUNT(*) FROM reading_events WHERE profile_id=?", (profile_id,)
     ).fetchone()[0]
 
+    # ── Age group (needed for base level calculation) ─────────────────────
+    profile_row = conn.execute(
+        "SELECT age_group FROM profiles WHERE id = ?", (profile_id,)
+    ).fetchone()
+    age_group = profile_row["age_group"] if profile_row else "6-8"
+
+    # ── Reading level score (rule-based inline, avoids circular import) ───
+    _rl_base = {"3-5": 2.0, "6-8": 5.0, "9-12": 8.0}.get(age_group, 5.0)
+    _rl_adj = 0.0
+    if total_completed >= 3:
+        if completion_rate < 0.40:
+            _rl_adj -= 1.0
+        elif completion_rate > 0.90 and total_completed >= 5:
+            _rl_adj += 0.5
+    if total_completed >= 3 and avg_time_per_word_ms > 0:
+        if avg_time_per_word_ms < 200:
+            _rl_adj += 0.3
+        elif avg_time_per_word_ms > 600:
+            _rl_adj -= 0.3
+    if total_events >= 5:
+        if question_accuracy > 0.80:
+            _rl_adj += 0.5
+        elif question_accuracy < 0.40:
+            _rl_adj -= 0.5
+    if replay_rate > 0.30 and total_completed >= 3:
+        _rl_adj -= 0.3
+    _rl_max = {"3-5": 4.0, "6-8": 7.5, "9-12": 10.0}.get(age_group, 10.0)
+    reading_level_score = round(max(1.0, min(_rl_max, _rl_base + _rl_adj)), 2)
+
+    # ── Vocabulary score ──────────────────────────────────────────────────
+    # Primary signal: vocabulary_hint levels used in recent stories.
+    # introductory → 2.5, grade_level → 5.5, stretch → 8.5
+    # Weight recent stories more heavily (linear ramp).
+    _hint_midpoints = {"introductory": 2.5, "grade_level": 5.5, "stretch": 8.5}
+    _age_vocab_default = {"3-5": 2.5, "6-8": 5.5, "9-12": 8.5}.get(age_group, 5.5)
+    story_hint_rows = conn.execute(
+        "SELECT parameters FROM stories WHERE profile_id = ? ORDER BY created_at DESC LIMIT 10",
+        (profile_id,),
+    ).fetchall()
+    vocab_list = []
+    for sr in story_hint_rows:
+        try:
+            sp = json.loads(sr[0])
+            hint = sp.get("vocabulary_hint", "")
+            if hint in _hint_midpoints:
+                vocab_list.append(_hint_midpoints[hint])
+        except Exception:
+            pass
+    vocab_list.reverse()  # oldest first so recent stories carry more weight
+    if vocab_list:
+        n_v = len(vocab_list)
+        weights_v = list(range(1, n_v + 1))   # 1,2,…,n (most recent = n = highest)
+        vocab_base = sum(s * w for s, w in zip(vocab_list, weights_v)) / sum(weights_v)
+    else:
+        vocab_base = _age_vocab_default
+    # Behavioral adjustments
+    _v_qa_bonus    = min(1.5, question_accuracy * 2.0)
+    _v_cr_bonus    = min(0.75, completion_rate * 1.0)
+    _v_speed_adj   = max(-0.5, min(0.5, (300.0 - avg_time_per_word_ms) / 600.0)) if avg_time_per_word_ms > 0 else 0.0
+    vocabulary_score = round(max(1.0, min(_rl_max, vocab_base + _v_qa_bonus + _v_cr_bonus + _v_speed_adj)), 2)
+
     conn.close()
 
     features = {
         "profile_id": profile_id,
+        "reading_level_score": reading_level_score,
+        "vocabulary_score": vocabulary_score,
         "completion_rate": round(completion_rate, 4),
         "avg_time_per_word_ms": round(avg_time_per_word_ms, 2),
         "replay_rate": round(replay_rate, 4),
@@ -340,12 +413,15 @@ def _upsert_ml_state(features: dict):
     conn.execute(
         """
         INSERT INTO profile_ml_state
-            (profile_id, completion_rate, avg_time_per_word_ms, replay_rate,
+            (profile_id, reading_level_score, vocabulary_score,
+             completion_rate, avg_time_per_word_ms, replay_rate,
              question_accuracy, session_frequency_per_week, preferred_themes,
              preferred_settings, total_stories_started, total_stories_completed,
              total_events, last_computed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(profile_id) DO UPDATE SET
+            reading_level_score       = excluded.reading_level_score,
+            vocabulary_score          = excluded.vocabulary_score,
             completion_rate           = excluded.completion_rate,
             avg_time_per_word_ms      = excluded.avg_time_per_word_ms,
             replay_rate               = excluded.replay_rate,
@@ -360,6 +436,8 @@ def _upsert_ml_state(features: dict):
         """,
         (
             features["profile_id"],
+            features["reading_level_score"],
+            features["vocabulary_score"],
             features["completion_rate"],
             features["avg_time_per_word_ms"],
             features["replay_rate"],

@@ -140,6 +140,44 @@ def estimate_reading_level(profile_id: str, age_group: str) -> dict:
     }
 
 
+def estimate_vocabulary_score(profile_id: str, age_group: str) -> dict:
+    """
+    Estimate the child's current vocabulary level on a 1–10 scale.
+
+    Primary signal: the vocabulary_hint levels assigned to the child's recent stories
+    (introductory → 2.5, grade_level → 5.5, stretch → 8.5), weighted toward recency.
+    Supporting signals: question accuracy, completion rate, reading speed.
+
+    Returns:
+        {
+          "score": float,   # 1–10
+          "label": str,     # "Simple" | "Grade Level" | "Advanced"
+          "hint":  str,     # "introductory" | "grade_level" | "stretch"
+        }
+    """
+    state = get_ml_state(profile_id)
+
+    # Use stored vocabulary_score from last recompute if available
+    if state is not None:
+        stored = state.get("vocabulary_score") or 0.0
+        if stored > 0:
+            max_level = AGE_GROUP_MAX_LEVEL.get(age_group, 10.0)
+            score = round(min(stored, max_level), 2)
+            return {
+                "score": score,
+                "label": _vocab_score_label(score),
+                "hint": _score_to_vocab(score),
+            }
+
+    # Cold-start / no data: return age-group default
+    base = {"3-5": 2.5, "6-8": 5.0, "9-12": 8.0}.get(age_group, 5.0)
+    return {
+        "score": base,
+        "label": _vocab_score_label(base),
+        "hint": _score_to_vocab(base),
+    }
+
+
 def predict_engagement(profile_id: str, age_group: str = "6-8") -> dict:
     """
     Predict the child's current engagement level.
@@ -531,6 +569,15 @@ def _engagement_label(score: float) -> str:
     if score >= 0.20:
         return "low"
     return "at_risk"
+
+
+def _vocab_score_label(score: float) -> str:
+    """Human-readable label for vocabulary score (1–10)."""
+    if score <= 3.5:
+        return "Simple"
+    if score <= 7.0:
+        return "Grade Level"
+    return "Advanced"
 
 
 def _extract_first_character(text: str) -> str:

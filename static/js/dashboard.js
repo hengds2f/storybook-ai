@@ -258,6 +258,7 @@ const Dashboard = (() => {
 
       renderStats(stats);
       renderBreakdowns(stats);
+      renderProfileProgress(data.profiles_ml || []);
       renderStories(allStories);
     } catch (e) {
       console.error('Dashboard load error:', e);
@@ -274,6 +275,110 @@ const Dashboard = (() => {
     setNum('statProfiles', stats.profile_count || 0);
     setNum('statThemes', Object.keys(stats.theme_counts || {}).length);
     setNum('statSettings', Object.keys(stats.setting_counts || {}).length);
+  }
+
+  // ── Vocabulary / Reader Progress ────────────────────────────────────────
+  function renderProfileProgress(profilesML) {
+    const section = document.getElementById('readerProgress');
+    const container = document.getElementById('profileProgressCards');
+    if (!section || !container || profilesML.length === 0) return;
+
+    section.style.display = 'block';
+
+    const hintMeta = {
+      introductory: { label: 'Simple',      color: '#10b981', pct: 33  },
+      grade_level:  { label: 'Grade Level', color: '#6366f1', pct: 60  },
+      stretch:      { label: 'Advanced',    color: '#a855f7', pct: 90  },
+      '':           { label: '—',           color: '#4b5563', pct: 50  },
+    };
+
+    container.innerHTML = profilesML.map(p => {
+      const vocabPct   = Math.round((p.vocabulary_score / 10) * 100);
+      const levelMeta  = hintMeta[p.vocabulary_hint] || hintMeta[''];
+      const qaPct      = Math.round((p.question_accuracy || 0) * 100);
+
+      // Mini progression chart — SVG bars (oldest → newest)
+      const prog = p.vocab_progression || [];
+      const bars = prog.map((item, i) => {
+        const meta  = hintMeta[item.vocabulary_hint] || hintMeta[''];
+        const h     = meta.pct;           // bar height %
+        const x     = (i / Math.max(prog.length, 1)) * 100;
+        const w     = Math.max(4, 90 / Math.max(prog.length, 1));
+        const title = App.escapeHtml(`${item.title} — ${meta.label}`);
+        return `<rect x="${x.toFixed(1)}%" y="${100 - h}%" width="${(w - 1).toFixed(1)}%"
+          height="${h}%" fill="${meta.color}" rx="2" opacity="0.9">
+          <title>${title}</title></rect>`;
+      }).join('');
+
+      const svgChart = prog.length > 0
+        ? `<svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%;height:48px;display:block;">${bars}</svg>`
+        : `<p class="vocab-no-data">Generate stories to see vocabulary progression</p>`;
+
+      const coldNote = p.is_cold_start
+        ? `<p class="vocab-cold-start">🌱 Building profile — ${p.total_stories_completed}/3 stories for personalised recommendations</p>`
+        : '';
+
+      return `
+        <div class="vocab-progress-card">
+          <div class="vocab-card-header">
+            <div class="profile-avatar" style="background:${p.avatar_color}; width:36px; height:36px; font-size:1rem; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">
+              ${App.escapeHtml(p.profile_name[0].toUpperCase())}
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:700; font-size:1rem;">${App.escapeHtml(p.profile_name)}</div>
+              <div class="text-small text-muted">${App.ageLabel(p.age_group)}</div>
+            </div>
+            <span class="vocab-level-badge" style="background:${levelMeta.color}22; color:${levelMeta.color}; border:1px solid ${levelMeta.color}44;">
+              ${levelMeta.label}
+            </span>
+          </div>
+
+          <div class="vocab-score-row">
+            <span class="vocab-score-label">📖 Vocabulary Score</span>
+            <span class="vocab-score-value">${p.vocabulary_score.toFixed(1)} / 10</span>
+          </div>
+          <div class="vocab-bar-track">
+            <div class="vocab-bar-fill" style="width:${vocabPct}%; background:${levelMeta.color};"></div>
+          </div>
+
+          <div class="vocab-meta-grid">
+            <div class="vocab-meta-item">
+              <span class="vocab-meta-icon">📚</span>
+              <div>
+                <div class="vocab-meta-value">${p.reading_level_label}</div>
+                <div class="vocab-meta-key">Reading Level</div>
+              </div>
+            </div>
+            <div class="vocab-meta-item">
+              <span class="vocab-meta-icon">✅</span>
+              <div>
+                <div class="vocab-meta-value">${qaPct}%</div>
+                <div class="vocab-meta-key">Question Accuracy</div>
+              </div>
+            </div>
+            <div class="vocab-meta-item">
+              <span class="vocab-meta-icon">🏆</span>
+              <div>
+                <div class="vocab-meta-value">${p.total_stories_completed}</div>
+                <div class="vocab-meta-key">Stories Finished</div>
+              </div>
+            </div>
+          </div>
+
+          ${coldNote}
+
+          <div class="vocab-progression-section">
+            <div class="vocab-progression-label">Story Vocabulary Progression</div>
+            <div class="vocab-progression-legend">
+              <span style="color:#10b981;">■ Simple</span>
+              <span style="color:#6366f1;">■ Grade Level</span>
+              <span style="color:#a855f7;">■ Advanced</span>
+            </div>
+            <div class="vocab-chart-wrap">${svgChart}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   function renderBreakdowns(stats) {
