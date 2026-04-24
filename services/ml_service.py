@@ -495,6 +495,18 @@ _STOP_WORDS: frozenset[str] = frozenset({
     "sleeping","smelled","snowed","stood","swimming","things","towns",
     "twinkled","valley","village","waving","winds","wishing","wondering",
     "wooden","working","wanted",
+    # More basic nouns/verbs obvious to children
+    "picture","pictures","window","garden","castle","dragon","button",
+    "basket","bottle","bridge","candle","carpet","circle","corner",
+    "cotton","desert","dinner","dollar","engine","finger","golden",
+    "hammer","island","jacket","jungle","kitten","ladder","locket",
+    "marble","market","mirror","monkey","mother","napkin","needle",
+    "orange","parrot","pencil","pickle","pillow","pirate","pocket",
+    "rabbit","ribbon","rocket","saddle","sailor","shadow","silver",
+    "sister","spirit","spring","street","summer","sunset","supper",
+    "tablet","temple","thread","throne","ticket","timber","tinker",
+    "tongue","turtle","umbrella","velvet","viking","violet","visits",
+    "wallet","winter","wizard","wonder","wander","wicked","whisper",
 })
 
 
@@ -976,36 +988,76 @@ def _fetch_definition_mcq(word: str, context_text: str) -> dict:
 def _heuristic_mcq(word: str) -> dict:
     """
     Last-resort MCQ when Gemini is completely unavailable.
-    Uses suffix heuristics to produce plausible definition-style options
-    rather than meta-category descriptions.
+    Produces four real definition-style options. The word itself never appears
+    in any option text.
+    Each suffix group has a pool of (correct_def, [wrong_def, ...]) pairs so
+    answers vary across questions.
     """
     w = word.lower()
-    if w.endswith(('ness', 'tion', 'sion', 'ment', 'ance', 'ence', 'ity')):
-        sets = [
-            ("the state or quality of being " + w[:-4], ["a type of food", "a sudden movement", "a loud sound"]),
-            ("a feeling of " + w[:-4], ["a small creature", "a sharp object", "a type of weather"]),
+
+    # --- suffix-based pools ---
+    if w.endswith(('tion', 'sion')):
+        pool = [
+            ("the act or result of doing something",
+             ["a small object you can touch", "a feeling of sadness", "a place far away"]),
+            ("a process that causes a change",
+             ["a type of food eaten at dinner", "an animal found in the jungle", "a colour in the rainbow"]),
         ]
-    elif w.endswith(('ful', 'ous', 'ive', 'able', 'ible', 'less')):
-        sets = [
-            ("full of " + w[:-3] if w.endswith("ful") else "having the quality of " + w,
-             ["unable to move", "making a loud noise", "smelling bad"]),
+    elif w.endswith(('ness', 'ment', 'ance', 'ence', 'ity')):
+        pool = [
+            ("a quality or condition that can be felt or observed",
+             ["a tool used for building", "a sound made by an animal", "a place visited on a journey"]),
+            ("the state of having a particular feature",
+             ["a type of sweet food", "a piece of furniture", "a way of travelling"]),
+        ]
+    elif w.endswith('ful'):
+        pool = [
+            ("having a lot of something good",
+             ["completely empty", "very noisy and busy", "made of rough material"]),
+        ]
+    elif w.endswith(('ous', 'ious')):
+        pool = [
+            ("having a strong or notable quality",
+             ["easy to carry in a pocket", "found only underground", "made entirely of wood"]),
+        ]
+    elif w.endswith(('ive', 'able', 'ible')):
+        pool = [
+            ("able to do or cause something",
+             ["impossible to see clearly", "very heavy and solid", "belonging to someone else"]),
+        ]
+    elif w.endswith('less'):
+        pool = [
+            ("without something that is usually present",
+             ["filled to the very top", "extremely loud", "covered in patterns"]),
         ]
     elif w.endswith('ing'):
-        sets = [
-            ("currently doing the action of " + w[:-3],
-             ["a type of food", "a piece of clothing", "a colour"]),
+        pool = [
+            ("happening right now or continuing over time",
+             ["finished and done with", "stored away safely", "belonging to the past"]),
+            ("an action or process that is taking place",
+             ["a solid and heavy object", "a place that is far away", "a colour or pattern"]),
         ]
     elif w.endswith(('ed', 'ened', 'ered')):
-        sets = [
-            ("having " + w[:-2] + "ed or become " + w[:-2],
-             ["a type of animal", "a place to sleep", "something to eat"]),
+        pool = [
+            ("changed into a new state or condition",
+             ["something you can eat", "a type of clothing", "a place in nature"]),
+            ("completed or having happened already",
+             ["a loud and sudden noise", "an animal in the wild", "a kind of weather"]),
+        ]
+    elif w.endswith('ly'):
+        pool = [
+            ("in a way that shows a particular manner or degree",
+             ["a place where people gather", "a type of sport or game", "a strong physical feeling"]),
         ]
     else:
-        sets = [
-            (word + ": a special or unusual thing",
-             ["a common household item", "a type of food", "a way to travel"]),
+        pool = [
+            ("something that has a special meaning or effect",
+             ["a type of food you eat", "a piece of clothing to wear", "a way to travel somewhere"]),
+            ("something that can change or affect the world around it",
+             ["a heavy object made of stone", "a sound heard at night", "a colour seen in the sky"]),
         ]
-    correct, wrong = random.choice(sets)
+
+    correct, wrong = random.choice(pool)
     letters = ["A", "B", "C", "D"]
     correct_pos = random.randint(0, 3)
     correct_letter = letters[correct_pos]
