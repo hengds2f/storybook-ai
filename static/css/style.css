@@ -1790,10 +1790,14 @@ a:hover { color: var(--accent-light); }
   gap: 0.5rem;
   z-index: 106;
   transform: translateY(-110%);
-  transition: transform 0.3s ease;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.3s ease, visibility 0.3s ease;
 }
 .mobile-nav.open {
   transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
 }
 .mobile-nav-link {
   display: flex;

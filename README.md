@@ -7,6 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
+full_width: true
 short_description: AI-powered personalized children's story generator
 ---
 
