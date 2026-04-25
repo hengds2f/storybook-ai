@@ -31,6 +31,7 @@ const App = (() => {
 
     renderNavbar();
     highlightActiveNav();
+    initHamburger();
 
     // 2. Background refresh: silently re-validate the session with the server.
     //    This keeps the client in sync if the session expires between page loads.
@@ -333,6 +334,35 @@ const App = (() => {
     if (e.target.id === 'authModalClose') closeAuthModal();
   });
 
+  // ── Hamburger / Mobile Nav ─────────────────────────────────────────────
+  function initHamburger() {
+    const btn = document.getElementById('hamburgerBtn');
+    if (!btn) return;
+    btn.addEventListener('click', toggleMobileNav);
+  }
+
+  function toggleMobileNav() {
+    const btn = document.getElementById('hamburgerBtn');
+    const nav = document.getElementById('mobileNav');
+    const overlay = document.getElementById('mobileNavOverlay');
+    if (!btn || !nav) return;
+    const isOpen = nav.classList.toggle('open');
+    overlay && overlay.classList.toggle('open', isOpen);
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', isOpen);
+  }
+
+  function closeMobileNav() {
+    const btn = document.getElementById('hamburgerBtn');
+    const nav = document.getElementById('mobileNav');
+    const overlay = document.getElementById('mobileNavOverlay');
+    if (!nav) return;
+    nav.classList.remove('open');
+    overlay && overlay.classList.remove('open');
+    btn && btn.classList.remove('open');
+    btn && btn.setAttribute('aria-expanded', 'false');
+  }
+
   // ── Boot ───────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', init);
 
@@ -341,6 +371,7 @@ const App = (() => {
     openAuthModal, closeAuthModal, switchAuthTab,
     handleLogin, handleRegister, logout, onCreateStory,
     showToast, showStoryLoading, hideStoryLoading,
-    escapeHtml, formatDate, themeEmoji, settingEmoji, ageLabel
+    escapeHtml, formatDate, themeEmoji, settingEmoji, ageLabel,
+    closeMobileNav, toggleMobileNav
   };
 })();

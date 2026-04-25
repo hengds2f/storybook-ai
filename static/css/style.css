@@ -1733,10 +1733,92 @@ a:hover { color: var(--accent-light); }
 .hidden { display: none !important; }
 .w-full { width: 100%; }
 
+/* ── Hamburger Button ─────────────────────────────────────────────────── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 110;
+}
+.hamburger span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transition: var(--transition);
+}
+.hamburger.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ── Mobile Nav Drawer ────────────────────────────────────────────────── */
+.mobile-nav-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 105;
+}
+.mobile-nav-overlay.open { display: block; }
+
+.mobile-nav {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 26, 0.98);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 0.5rem;
+  z-index: 106;
+  transform: translateY(-110%);
+  transition: transform 0.3s ease;
+}
+.mobile-nav.open {
+  transform: translateY(0);
+}
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: var(--transition);
+}
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+  color: var(--text-primary);
+  background: var(--color-surface-2);
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .navbar { padding: 0 1rem; }
   .navbar-nav { display: none; }
+  .navbar-auth { display: none; }
+  .hamburger { display: flex; }
   .container { padding: 0 1rem; }
   .age-selector { grid-template-columns: repeat(3, 1fr); }
   .stories-grid { grid-template-columns: 1fr; }

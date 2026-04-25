@@ -27,7 +27,19 @@
     <div class="navbar-auth" id="navbarAuth">
       <!-- Populated by app.js -->
     </div>
+
+    <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
   </nav>
+
+  <!-- Mobile Nav Drawer -->
+  <div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="App.closeMobileNav()"></div>
+  <div class="mobile-nav" id="mobileNav">
+    <a href="/app" class="mobile-nav-link">✨ Create Story</a>
+    <a href="/library" class="mobile-nav-link">📖 Library</a>
+    <a href="/dashboard" class="mobile-nav-link">👨‍👩‍👧 Dashboard</a>
+  </div>
 
   <!-- ── Auth Modal ─────────────────────────────────────────────────── -->
   <div class="modal-overlay" id="authModal" role="dialog" aria-modal="true" aria-label="Sign In">
